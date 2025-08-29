@@ -18,13 +18,14 @@
   th { text-align:left; color:#bfeaff; }
   input[type="text"], input[type="number"] { background:#0d1218; color:#def; border:1px solid #213244; border-radius:8px; padding:8px; width:100%; }
   .tag { display:inline-block; padding:2px 8px; border-radius:999px; background:#1b2a3a; color:#bfeaff; font-size:12px; }
+  .tag.red { background:#3a1b1b; color:#ffbfbf; }
   .right { text-align:right; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Inventory Intake (Pages Functions)</h1>
-  <p class="muted">Paste IMEIs, we’ll fetch device info from Sickw (service 6) and price from your live CSV.</p>
+  <p class="muted">Paste IMEIs, we’ll fetch device info from Sickw (service 61) and price from your live CSV.</p>
 
   <div id="balance" class="muted"></div>
 
@@ -34,7 +35,7 @@
     <div class="row" style="margin-top:10px;">
       <button class="btn" type="submit">Lookup & Price</button>
       <button class="btn secondary" id="reset" type="button">Reset</button>
-      <span class="muted">We’ll fetch Sickw details and suggest a price via your prices.csv.</span>
+      <span class="muted">Auto-fills price paid with $ (no cents). Edit as needed.</span>
     </div>
   </form>
 
@@ -46,7 +47,10 @@ async function fetchBalance() {
   try {
     const r = await fetch('/api/balance');
     const j = await r.json();
-    document.getElementById('balance').innerHTML = 'API Balance: <span class="tag">' + (j.balance || '—') + '</span>';
+    const val = (j.balance || '').toString().trim();
+    let text = 'API Balance: ';
+    text += val && !isNaN(Number(val)) ? `<span class="tag">$${val}</span>` : `<span class="tag red">${val || '—'}</span>`;
+    document.getElementById('balance').innerHTML = text;
   } catch {}
 }
 fetchBalance();
@@ -82,30 +86,29 @@ document.getElementById('form').onsubmit = async (e) => {
       <tr>
         <th>IMEI</th>
         <th>Device</th>
+        <th>Carrier</th>
         <th>Matched (Sheet)</th>
-        <th class="right">Base (¢)</th>
-        <th class="right">Suggested (¢)</th>
-        <th>Confidence</th>
-        <th>Condition</th>
-        <th>Price Paid (¢)</th>
+        <!-- Base price hidden as requested -->
+        <th class="right">Price Paid ($)</th>
         <th>Notes</th>
       </tr>
     </thead><tbody>`);
 
   rows.forEach((r, idx) => {
     if (!r.ok) {
-      table.push(`<tr><td colspan="9" class="err">IMEI ${r.imei} → ${r.error || 'error'}</td></tr>`);
+      table.push(`<tr><td colspan="6" class="err">IMEI ${r.imei} → ${r.error || 'error'}</td></tr>`);
       return;
     }
+    const warn = r.icloud_lock_on ? `<span class="tag red">iCloud Lock: ON</span>` : '';
+    const display = (r.device_display || ((r.manufacturer||'') + ' ' + (r.model_name||''))).trim();
+    const paidDollars = typeof r.suggested_price_dollars === 'number' ? r.suggested_price_dollars : '';
+
     table.push(`<tr>
       <td><code>${r.imei}</code></td>
-      <td>${(r.device_display || ((r.manufacturer||'') + ' ' + (r.model_name||''))).trim()}</td>
+      <td>${display} ${warn ? `<div>${warn}</div>` : ''}</td>
+      <td><span class="tag">${r.carrier || 'Unknown'}</span></td>
       <td><div>${r.match_device || '—'}</div><div class="muted">${r.match_sheet || ''}</div></td>
-      <td class="right">${r.base_price_cents ?? ''}</td>
-      <td class="right"><b>${r.suggested_price_cents ?? ''}</b></td>
-      <td><span class="tag">${((r.confidence||0)*100).toFixed(1)}%</span></td>
-      <td><input type="text" id="cond_${idx}" placeholder="A/B/C"/></td>
-      <td><input type="number" id="paid_${idx}" placeholder="${r.suggested_price_cents ?? ''}"/></td>
+      <td class="right"><input type="number" id="paid_${idx}" value="${paidDollars}" step="1" min="0" /></td>
       <td><input type="text" id="note_${idx}" /></td>
     </tr>`);
   });
@@ -113,24 +116,30 @@ document.getElementById('form').onsubmit = async (e) => {
   table.push(`</tbody></table>
     <div class="row" style="margin-top:12px;">
       <button class="btn" id="download">Download CSV</button>
-      <span class="muted">Import this into your purchase list.</span>
+      <span class="muted">CSV exports price paid in <b>cents</b> (dollars × 100) for backend compatibility.</span>
     </div>`);
 
   el.innerHTML = table.join('');
 
   document.getElementById('download').onclick = () => {
-    const payload = rows.map((r, idx) => r.ok ? ({
-      imei: r.imei,
-      manufacturer: r.manufacturer || '',
-      model_name: r.model_name || '',
-      model_code: r.model_code || '',
-      suggested_price_cents: r.suggested_price_cents ?? '',
-      condition: (document.getElementById('cond_'+idx)?.value || '').trim(),
-      price_paid_cents: (document.getElementById('paid_'+idx)?.value || '').trim(),
-      notes: (document.getElementById('note_'+idx)?.value || '').trim(),
-    }) : null).filter(Boolean);
+    const payload = rows.map((r, idx) => r.ok ? (() => {
+      const dollars = Number((document.getElementById('paid_'+idx)?.value || '').trim());
+      const cents = Number.isFinite(dollars) ? Math.round(dollars * 100) : '';
+      return {
+        imei: r.imei,
+        manufacturer: r.manufacturer || '',
+        model_name: r.model_name || '',
+        model_code: r.model_code || '',
+        carrier: r.carrier || 'Unknown',
+        icloud_lock: r.icloud_lock_on ? 'ON' : 'OFF',
+        // keep suggested in case you want it later; not displayed in table
+        suggested_price_cents: r.suggested_price_cents ?? '',
+        price_paid_cents: cents,
+        notes: (document.getElementById('note_'+idx)?.value || '').trim(),
+      };
+    })() : null).filter(Boolean);
 
-    const header = ['imei','manufacturer','model_name','model_code','suggested_price_cents','condition','price_paid_cents','notes'];
+    const header = ['imei','manufacturer','model_name','model_code','carrier','icloud_lock','suggested_price_cents','price_paid_cents','notes'];
     const csv = [header.join(',')].concat(payload.map(o =>
       header.map(k => JSON.stringify(String(o[k] ?? '')).replace(/^\uFEFF/, '')).join(',')
     )).join('\n');
