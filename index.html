@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Inventory Intake</title>
+<title>Inventory Intake (Cloudflare Pages)</title>
 <style>
   body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#0b0f14; color:#e6f1ff; margin:0; }
   .wrap { max-width: 1200px; margin: 20px auto; padding: 16px; background:#0f141a; border-radius:14px; box-shadow: 0 10px 30px rgba(0,0,0,.25); position: relative; }
@@ -17,8 +17,11 @@
   th, td { padding: 10px 8px; border-bottom: 1px solid #213244; vertical-align: top; }
   th { text-align:left; color:#bfeaff; font-weight: 600; }
   input[type="text"], input[type="number"] { background:#0d1218; color:#def; border:1px solid #213244; border-radius:8px; padding:8px; width:100%; }
+  select { background:#0d1218; color:#def; border:1px solid #213244; border-radius:8px; padding:8px; }
   .tag { display:inline-block; padding:2px 8px; border-radius:999px; background:#1b2a3a; color:#bfeaff; font-size:12px; }
   .tag.red { background:#3a1b1b; color:#ffbfbf; }
+  .tag.yellow { background:#3a321b; color:#ffe4a6; }
+  .tag.green { background:#1b3a2a; color:#bfffd4; }
   .right { text-align:right; }
   .totals { margin-top:12px; font-weight:700; }
   /* loader */
@@ -26,15 +29,31 @@
   .loader.show { display:flex; }
   .spinner { width:42px; height:42px; border:5px solid #1b2a3a; border-top-color:#00e29b; border-radius:50%; animation: spin 0.9s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  /* typeahead */
+  .typeahead { position: relative; flex: 2 1 260px; }
+  .suggestions {
+    position: absolute; top: 100%; left: 0; right: 0;
+    background: #0d1218; border: 1px solid #213244; border-radius: 10px;
+    margin-top: 6px; max-height: 320px; overflow-y: auto; z-index: 50;
+    box-shadow: 0 10px 25px rgba(0,0,0,.35);
+  }
+  .sug-item { padding: 10px; cursor: pointer; display:flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .sug-item:hover, .sug-item.active { background: #13202d; }
+  .sug-left { display:flex; flex-direction: column; }
+  .sug-device { font-weight: 600; color:#dff3ff; }
+  .sug-sheet { font-size: 12px; color:#9ac7ff; opacity:.8; }
+  .sug-price { font-weight: 700; }
+  /* identifier validation highlight */
+  .bad { border-color:#b44 !important; box-shadow: 0 0 0 2px rgba(255,64,64,.18); }
   /* chips */
-  .chip { display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:8px 12px; border-radius:999px; background:#101720; color:#cfe8ff; border:1px solid #1a2a3c; cursor:pointer; opacity:0.98; user-select:none; }
+  .chip { display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 8px; border-radius:999px; background:#101720; color:#cfe8ff; border:1px solid #1a2a3c; cursor:pointer; opacity:0.9; }
   .chip:hover { opacity:1; }
   .chip .label { opacity:.65; }
   .chip .value { font-weight:700; }
   /* menu */
-  .menu { position:absolute; background:#0d1218; border:1px solid #213244; border-radius:10px; min-width:180px; box-shadow: 0 10px 25px rgba(0,0,0,.35); z-index:999; display:none; }
+  .menu { position:absolute; background:#0d1218; border:1px solid #213244; border-radius:10px; min-width:140px; box-shadow: 0 10px 25px rgba(0,0,0,.35); z-index:999; display:none; }
   .menu.show { display:block; }
-  .menu-item { padding:10px 12px; cursor:pointer; font-size:13px; }
+  .menu-item { padding:8px 10px; cursor:pointer; font-size:13px; }
   .menu-item:hover { background:#13202d; }
 </style>
 </head>
@@ -43,7 +62,7 @@
   <div id="loader" class="loader"><div><div class="spinner" style="margin:auto"></div><div class="muted" style="margin-top:10px;text-align:center">Looking up IMEIs…</div></div></div>
 
   <h1>Inventory Intake</h1>
-  <p class="muted">We auto-fill <b>Price Paid</b> from your price variants. Change <b>Condition</b>, <b>Carrier</b>, or <b>Storage</b> with the chips; the price re-computes instantly (but you can still type over it).</p>
+  <p class="muted">Trailing <b>“u”</b> marks an IMEI as <b>Used</b> (we don’t send the “u” to Sickw). Change <b>Condition</b>, <b>Carrier</b>, or <b>Storage</b> — the <b>Price Paid</b> will auto-switch to that variant, but you can still edit it.</p>
 
   <div id="balance" class="muted"></div>
 
@@ -53,8 +72,41 @@
     <div class="row" style="margin-top:10px;">
       <button class="btn" id="lookupBtn" type="submit">Lookup & Price</button>
       <button class="btn secondary" id="reset" type="button">Reset</button>
+      <span class="muted">Price variants preloaded from your site’s CSV.</span>
     </div>
   </form>
+
+  <h3 style="margin-top:20px;">Add Manual Item</h3>
+  <div class="row">
+    <div class="typeahead" style="flex: 3 1 320px;">
+      <input type="text" id="m_device" placeholder="Start typing (e.g., AirPods Pro 2, iPhone 13 Mini 128GB)" autocomplete="off" />
+      <div id="m_suggest" class="suggestions" style="display:none;"></div>
+    </div>
+
+    <div class="typeahead" style="flex: 2 1 220px;">
+      <input type="text" id="m_color" placeholder="Color (type to search)" autocomplete="off" />
+      <div id="m_color_suggest" class="suggestions" style="display:none;"></div>
+    </div>
+
+    <select id="m_storage" style="width: 120px;">
+      <option value="">Storage</option>
+      <option>64GB</option>
+      <option>128GB</option>
+      <option>256GB</option>
+      <option>512GB</option>
+      <option>1TB</option>
+      <option>2TB</option>
+    </select>
+
+    <select id="m_carrier">
+      <option value="Unknown">Carrier</option>
+      <option>Unlocked</option><option>Verizon</option><option>T-Mobile</option><option>AT&T</option>
+      <option>Xfinity</option><option>Spectrum</option><option>US Cellular</option><option>Cricket</option>
+    </select>
+    <input type="number" id="m_qty" placeholder="Qty" min="1" step="1" value="1" style="width:90px" />
+    <input type="number" id="m_price" placeholder="Unit Price ($)" min="0" step="1" style="width:140px" />
+    <button class="btn" id="addManual">Add</button>
+  </div>
 
   <div id="out"></div>
   <div class="totals" id="totals"></div>
@@ -63,21 +115,53 @@
 <div id="menu" class="menu" role="menu"></div>
 
 <script>
+async function fetchBalance() {
+  try {
+    const r = await fetch('/api/balance');
+    const j = await r.json();
+    const val = (j.balance || '').toString().trim();
+    let text = 'API Balance: ';
+    text += val && !isNaN(Number(val)) ? '<span class="tag">$' + val + '</span>' : '<span class="tag red">' + (val || '—') + '</span>';
+    document.getElementById('balance').innerHTML = text;
+  } catch (e) {}
+}
+fetchBalance();
+
 var state = { rows: [], manual: [] };
+
+const COLOR_LIST = Array.from(new Set([
+  "Midnight","Starlight","Blue","Purple","Yellow","Red",
+  "Deep Purple","Space Black","Silver","Gold",
+  "Black","Light Blue","Light Green","Light Yellow","Light Pink","Pink","Green",
+  "Natural Titanium","Blue Titanium","White Titanium","Black Titanium","Titanium",
+  "Desert","Desert Titanium","Natural",
+  "Phantom Black","Phantom White","Burgundy","Graphite","Sky Blue","Cream","Lavender","Lime",
+  "Onyx Black","Marble Gray","Cobalt Violet","Amber Yellow",
+  "Titanium Black","Titanium Gray","Titanium Violet","Titanium Yellow","Titanium Blue","Titanium Green","Titanium Orange"
+])).sort((a,b)=>a.localeCompare(b));
+
 const CARRIERS = ["Unlocked","Verizon","T-Mobile","AT&T","Xfinity","Spectrum","US Cellular","Cricket"];
 const STORAGES = ["64GB","128GB","256GB","512GB","1TB","2TB"];
 
-function variantKey(cond, carrier){ const lock=(carrier==='Unlocked')?'UNLOCKED':'LOCKED'; return (cond||'New').toUpperCase() + '_' + lock; }
-function centsToDollars(c){ return (typeof c==='number' && isFinite(c)) ? Math.round(c)/100 : ''; }
-function autoPriceDollars(row){ const key=variantKey(row.ui?.condition, row.ui?.carrier); const cents=row.ui?.variants?row.ui.variants[key]:undefined; return (typeof cents==='number')?centsToDollars(cents):''; }
-function setUserPrice(row, dollars){ row.ui=row.ui||{}; row.ui.userPriceDollars = (isFinite(Number(dollars))?Number(dollars):''); }
-function getDisplayPrice(row){ if(row.ui && row.ui.userPriceDollars!=='' && typeof row.ui.userPriceDollars!=='undefined') return row.ui.userPriceDollars; const v=autoPriceDollars(row); if(v!=='' ) return v; if(typeof row.suggested_price_dollars==='number') return row.suggested_price_dollars; return ''; }
+function inferBrand(name) {
+  const s = (name||'').toLowerCase();
+  if (s.includes('iphone') || s.includes('apple')) return 'apple';
+  if (s.includes('samsung') || s.includes('galaxy')) return 'samsung';
+  return '';
+}
 
-async function ensureVariants(row){
-  if(row && row.ui && row.ui.variants) return;
+function variantKey(cond, carrier) {
+  const lock = (carrier === 'Unlocked') ? 'UNLOCKED' : 'LOCKED';
+  return (cond||'New').toUpperCase() + '_' + lock;
+}
+
+function centsToDollars(cents) { return (typeof cents==='number' && isFinite(cents)) ? Math.round(cents)/100 : ''; }
+
+async function ensureVariants(row) {
+  if (row && row.ui && row.ui.variants) return;
   const q = encodeURIComponent(row.device_display || row.device || row.model_name || '');
   const storage = encodeURIComponent(row.ui?.storage || row.storage || '');
-  const brand = ''; // backend usually preloads; fallback fetch is generic
+  const brand = encodeURIComponent(inferBrand(q));
   try {
     const res = await fetch(`/api/variants?q=${q}&storage=${storage}&brand=${brand}`);
     const data = await res.json();
@@ -85,29 +169,190 @@ async function ensureVariants(row){
   } catch(e) {}
 }
 
-function render(){
-  const el=document.getElementById('out');
-  const rows=state.rows, mrows=state.manual;
-  const head=['Identifier (IMEI / Serial)','Device','Condition','Storage','Carrier','Matched (Sheet)','Price Paid ($)','Qty','Notes'];
-  let html='<table><thead><tr>'+head.map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>';
+function autoPriceDollars(row) {
+  const key = variantKey(row.ui?.condition, row.ui?.carrier);
+  const cents = row.ui?.variants ? row.ui.variants[key] : undefined;
+  return (typeof cents === 'number') ? centsToDollars(cents) : '';
+}
 
-  rows.forEach((r, idx)=>{
-    r._idx=idx; r.ui=r.ui||{};
-    if(!r.ui.condition) r.ui.condition = r.used ? 'Used' : 'New';
-    if(!r.ui.carrier) r.ui.carrier = r.carrier && CARRIERS.includes(r.carrier) ? r.carrier : 'Unlocked';
-    if(!r.ui.storage) r.ui.storage = r.storage || '';
+function setUserPrice(row, dollars) {
+  row.ui = row.ui || {};
+  row.ui.userPriceDollars = (isFinite(Number(dollars)) ? Number(dollars) : '');
+}
 
-    // If no user price yet, populate it now from variants/suggested
-    if (typeof r.ui.userPriceDollars === 'undefined' || r.ui.userPriceDollars === '') {
-      const v = getDisplayPrice(r);
-      if (v !== '') r.ui.userPriceDollars = v;
+function getDisplayPrice(row) {
+  if (row.ui && typeof row.ui.userPriceDollars !== 'undefined' && row.ui.userPriceDollars !== '') return row.ui.userPriceDollars;
+  return autoPriceDollars(row);
+}
+
+/* ---------- Device and Color typeaheads (same as before) ---------- */
+(function setupDeviceTypeahead() {
+  var input = document.getElementById('m_device');
+  var box   = document.getElementById('m_suggest');
+  var activeIdx = -1;
+  var lastQ = ""; var inflight = 0;
+
+  function hide() { box.style.display = 'none'; box.innerHTML = ''; activeIdx = -1; }
+  function show() { box.style.display = 'block'; }
+
+  function setStorageFromText(storageText) {
+    if (!storageText) return;
+    var val = storageText.toUpperCase().replace(/\s+/g,'').replace(/B$/, 'B');
+    var select = document.getElementById('m_storage');
+    for (var i=0;i<select.options.length;i++) {
+      if (select.options[i].text.toUpperCase() === val) { select.selectedIndex = i; return; }
     }
+  }
+
+  function parseColorAndStorage(deviceText) {
+    var upper = (deviceText || '').toUpperCase();
+    var storage = null;
+    var m = upper.match(/(64|128|256|512|1024|2048)\s*GB\b|\b(1|2)\s*TB\b/);
+    if (m) storage = m[1] ? (m[1]+"GB") : (m[2]+"TB");
+    var color = null;
+    for (var i=0;i<COLOR_LIST.length;i++) {
+      var c = COLOR_LIST[i];
+      var re = new RegExp('(^|\\s)'+c.replace(/[-/\\^$*+?.()|[\\]{}]/g, '\\$&')+'(\\s|$)', 'i');
+      if (re.test(deviceText)) { color = c; break; }
+    }
+    return { color, storage };
+  }
+
+  function selectItem(obj) {
+    input.value = obj.device;
+    var parsed = parseColorAndStorage(obj.device);
+    if (parsed.color && !document.getElementById('m_color').value) document.getElementById('m_color').value = parsed.color;
+    if (parsed.storage) setStorageFromText(parsed.storage);
+    document.getElementById('m_price').value = obj.price_dollars || 0;
+    hide();
+  }
+
+  function renderList(arr) {
+    if (!arr.length) { hide(); return; }
+    var html = arr.map(function(r, i) {
+      return '<div class="sug-item" data-idx="'+i+'">'
+        + '<div class="sug-left"><div class="sug-device">'+ r.device +'</div><div class="sug-sheet">'+ (r.sheet || '') +'</div></div>'
+        + '<div class="sug-price">$'+ (r.price_dollars || 0) +'</div></div>';
+    }).join('');
+    box.innerHTML = html;
+    Array.prototype.forEach.call(box.querySelectorAll('.sug-item'), function(el) {
+      el.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        var idx = parseInt(el.getAttribute('data-idx'), 10);
+        selectItem(arr[idx]);
+      });
+    });
+    show();
+  }
+
+  function debounce(fn, ms) { var t; return function(){ clearTimeout(t); var args=arguments; t=setTimeout(function(){ fn.apply(null,args); }, ms); }; }
+
+  var doFetch = debounce(async function(q) {
+    if (!q || q.length < 2) { hide(); return; }
+    if (q === lastQ) return;
+    lastQ = q;
+    var myTicket = ++inflight;
+    try {
+      const res = await fetch('/api/search?q=' + encodeURIComponent(q) + '&limit=20');
+      const data = await res.json();
+      if (inflight !== myTicket) return;
+      renderList((data && data.results) ? data.results : []);
+    } catch (e) { hide(); }
+  }, 180);
+
+  input.addEventListener('input', function() { doFetch(input.value.trim()); });
+
+  input.addEventListener('keydown', function(e) {
+    var items = box.querySelectorAll('.sug-item');
+    if (box.style.display === 'none' || !items.length) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = (activeIdx + 1) % items.length; }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = (activeIdx - 1 + items.length) % items.length; }
+    else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeIdx >= 0 && activeIdx < items.length) {
+        var idx = parseInt(items[activeIdx].getAttribute('data-idx'), 10);
+        var it = items[activeIdx];
+        selectItem({
+          device: it.querySelector('.sug-device').textContent,
+          sheet:  it.querySelector('.sug-sheet').textContent,
+          price_dollars: Number(it.querySelector('.sug-price').textContent.replace(/^\D+/, '')) || 0
+        });
+      }
+    } else if (e.key === 'Escape') { hide(); }
+    Array.prototype.forEach.call(items, function(el, i){ if (i === activeIdx) el.classList.add('active'); else el.classList.remove('active'); });
+  });
+
+  input.addEventListener('blur', function() { setTimeout(hide, 120); });
+})();
+
+(function setupColorTypeahead() {
+  var input = document.getElementById('m_color');
+  var box   = document.getElementById('m_color_suggest');
+  var activeIdx = -1;
+  function hide() { box.style.display = 'none'; box.innerHTML = ''; activeIdx = -1; }
+  function show() { box.style.display = 'block'; }
+  function filterColors(q) {
+    if (!q) return COLOR_LIST.slice(0, 20);
+    q = q.toLowerCase();
+    return COLOR_LIST.map(c => ({ c, score: (c.toLowerCase().startsWith(q) ? 2 : (c.toLowerCase().includes(q) ? 1 : 0)) }))
+                     .filter(x => x.score > 0)
+                     .sort((a,b) => b.score - a.score || a.c.localeCompare(b.c))
+                     .slice(0, 20).map(x => x.c);
+  }
+  function renderList(arr) {
+    if (!arr.length) { hide(); return; }
+    var html = arr.map((name, i) => '<div class="sug-item" data-idx="'+i+'"><div>'+name+'</div></div>').join('');
+    box.innerHTML = html;
+    Array.prototype.forEach.call(box.querySelectorAll('.sug-item'), function(el) {
+      el.addEventListener('mousedown', function(e) { e.preventDefault(); var idx = parseInt(el.getAttribute('data-idx'), 10); input.value = arr[idx]; hide(); });
+    });
+    show();
+  }
+  input.addEventListener('input', function() { renderList(filterColors(input.value.trim())); });
+  input.addEventListener('keydown', function(e) {
+    var items = box.querySelectorAll('.sug-item');
+    if (box.style.display === 'none' || !items.length) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = (activeIdx + 1) % items.length; }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = (activeIdx - 1 + items.length) % items.length; }
+    else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeIdx >= 0 && activeIdx < items.length) {
+        var idx = parseInt(items[activeIdx].getAttribute('data-idx'), 10);
+        input.value = items[idx].innerText.trim();
+        hide();
+      }
+    } else if (e.key === 'Escape') { hide(); }
+    Array.prototype.forEach.call(items, function(el, i){ if (i === activeIdx) el.classList.add('active'); else el.classList.remove('active'); });
+  });
+  input.addEventListener('focus', function() { if (!input.value.trim()) renderList(filterColors('')); });
+  input.addEventListener('blur', function() { setTimeout(hide, 120); });
+})();
+
+/* ---------- Rendering ---------- */
+function render() {
+  const el = document.getElementById('out');
+  const rows = state.rows, mrows = state.manual;
+  const head = ['Identifier (IMEI / Serial)','Device','Color','Condition','Storage','Carrier','Matched (Sheet)','Price Paid ($)','Qty','Notes'];
+  let html = '<table><thead><tr>' + head.map(h => '<th>'+h+'</th>').join('') + '</tr></thead><tbody>';
+
+  // API rows
+  rows.forEach((r, idx) => {
+    r._idx = idx; r.ui = r.ui || {};
+    if (!r.ui.condition) r.ui.condition = r.used ? 'Used' : 'New';
+    if (!r.ui.carrier) r.ui.carrier = r.carrier && CARRIERS.includes(r.carrier) ? r.carrier : 'Unlocked';
+    if (!r.ui.storage) r.ui.storage = r.storage || '';
+
+    const warnIcloud = r.icloud_lock_on ? '<div class="tag red">iCloud Lock: ON</div>' : '';
+    const hint = r.condition_hint === 'assume_used' ? '<div class="tag red">Assume Used</div>' :
+                 (r.condition_hint === 'check_for_use' ? '<div class="tag yellow">Check for signs of use</div>' : '');
+    const purch = r.estimated_purchase_date ? `<div class="muted">Est. Purchase: ${r.estimated_purchase_date}${(typeof r.estimated_purchase_age_days==='number'?' ('+r.estimated_purchase_age_days+'d ago)':'')}</div>` : '';
 
     const paid = getDisplayPrice(r);
 
     html += `<tr>
       <td><code>${r.imei||''}</code></td>
-      <td>${(r.device_display || ((r.manufacturer||'')+' '+(r.model_name||''))).trim()}</td>
+      <td>${(r.device_display || ((r.manufacturer||'')+' '+(r.model_name||''))).trim()}${warnIcloud}${hint}${purch}</td>
+      <td>${r.color || ''}</td>
       <td><span class="chip" data-kind="cond" data-rowkind="api" data-idx="${idx}"><span class="label">Cond</span><span class="value">${r.ui.condition}</span></span></td>
       <td><span class="chip" data-kind="store" data-rowkind="api" data-idx="${idx}"><span class="label">Storage</span><span class="value">${r.ui.storage||'—'}</span></span></td>
       <td><span class="chip" data-kind="car" data-rowkind="api" data-idx="${idx}"><span class="label">Carrier</span><span class="value">${r.ui.carrier}</span></span></td>
@@ -118,107 +363,196 @@ function render(){
     </tr>`;
   });
 
-  html += '</tbody></table><div class="row" style="margin-top:12px;"><button class="btn" id="download">Download CSV</button></div>';
+  // Manual rows
+  mrows.forEach((r, idx) => {
+    r._idx = idx; r.ui = r.ui || { condition:'New', carrier: r.carrier || 'Unlocked', storage: r.storage || '' };
+    const paid = getDisplayPrice(r) || r.unitPrice || '';
+
+    html += `<tr>
+      <td><input type="text" class="mident" data-idx="${idx}" placeholder="IMEI or Serial" value="${(r.identifier||'').replace(/"/g,'&quot;')}"/></td>
+      <td>${(r.device||'')}</td>
+      <td>${(r.color||'')}</td>
+      <td><span class="chip" data-kind="cond" data-rowkind="manual" data-idx="${idx}"><span class="label">Cond</span><span class="value">${r.ui.condition}</span></span></td>
+      <td><span class="chip" data-kind="store" data-rowkind="manual" data-idx="${idx}"><span class="label">Storage</span><span class="value">${r.ui.storage||'—'}</span></span></td>
+      <td><span class="chip" data-kind="car" data-rowkind="manual" data-idx="${idx}"><span class="label">Carrier</span><span class="value">${r.ui.carrier}</span></span></td>
+      <td><div class="muted">—</div></td>
+      <td class="right"><input type="number" class="mpaid" data-idx="${idx}" value="${paid!==''?paid:''}" step="1" min="0" /></td>
+      <td class="right">1</td>
+      <td><input type="text" class="mnote" data-idx="${idx}" value="${(r.notes||'').replace(/"/g,'&quot;')}" /></td>
+    </tr>`;
+  });
+
+  html += '</tbody></table><div class="row" style="margin-top:12px;"><button class="btn" id="download">Download CSV</button><span class="muted">CSV uses one <b>identifier</b> column.</span></div>';
   el.innerHTML = html;
 
-  bindDelegatedChipMenus();
+  attachChipMenus();
   attachPriceHandlers();
+  identifierValidation();
   bindDownload();
   computeTotals();
 }
 
-function attachPriceHandlers(){
-  document.querySelectorAll('.paid').forEach(inp=>{
-    inp.addEventListener('input', function(){
-      const idx=Number(inp.getAttribute('data-idx')); const row=state.rows[idx];
-      if(!row)return; setUserPrice(row, inp.value); computeTotals();
+function attachPriceHandlers() {
+  // track manual overrides
+  document.querySelectorAll('.paid').forEach(inp => {
+    inp.addEventListener('input', function() {
+      const idx = Number(inp.getAttribute('data-idx')); const row = state.rows[idx];
+      if (!row) return; setUserPrice(row, inp.value); computeTotals();
+    });
+  });
+  document.querySelectorAll('.mpaid').forEach(inp => {
+    inp.addEventListener('input', function() {
+      const idx = Number(inp.getAttribute('data-idx')); const row = state.manual[idx];
+      if (!row) return; setUserPrice(row, inp.value); computeTotals();
     });
   });
 }
 
-function bindDownload(){
-  document.getElementById('download').onclick=function(){
-    const payload=[];
-    state.rows.forEach((r,idx)=>{
-      const paid=document.querySelector('.paid[data-idx="'+idx+'"]')?.value;
-      const cents=isFinite(Number(paid))?Math.round(Number(paid)*100):'';
+function identifierValidation() {
+  const inputs = Array.from(document.querySelectorAll('.mident'));
+  const seen = new Map();
+  inputs.forEach(inp => {
+    const v = (inp.value || '').trim();
+    const key = v.toUpperCase();
+    inp.classList.remove('bad'); inp.removeAttribute('title');
+    if (!v) return;
+    if (seen.has(key)) { inp.classList.add('bad'); const other = seen.get(key); if (other) other.classList.add('bad'); }
+    else { seen.set(key, inp); }
+    if (/^\\d+$/.test(v) && v.length !== 15) { inp.classList.add('bad'); inp.title = 'IMEI is usually 15 digits (serials can be any length).'; }
+  });
+  inputs.forEach(inp => inp.addEventListener('input', identifierValidation));
+}
+
+function bindDownload() {
+  document.getElementById('download').onclick = function() {
+    const payload = [];
+    state.rows.forEach((r, idx) => {
+      const paid = document.querySelector('.paid[data-idx="'+idx+'"]')?.value;
+      const cents = isFinite(Number(paid)) ? Math.round(Number(paid)*100) : '';
       payload.push({
-        manual:'no', used:(r.ui?.condition==='Used')?'yes':'no', used_source:r.used_source||'',
+        manual:'no', used: (r.ui?.condition==='Used')?'yes':'no', used_source: r.used_source||'',
         identifier:r.imei||'', manufacturer:r.manufacturer||'', model_name:r.model_name||'', model_code:r.model_code||'',
         device:r.device_display||'', color:r.color||'', storage:r.ui?.storage||r.storage||'', carrier:r.ui?.carrier||r.carrier||'Unlocked',
         icloud_lock:r.icloud_lock_on?'ON':'OFF', condition_hint:r.condition_hint||'', estimated_purchase_date:r.estimated_purchase_date||'',
-        quantity:1, unit_price_cents:cents, line_total_cents:cents, suggested_price_cents:'', notes: document.querySelector('.note[data-idx="'+idx+'"]')?.value||''
+        quantity:1, unit_price_cents:cents, line_total_cents:cents, suggested_price_cents:'', notes: document.querySelector('.note[data-idx="'+idx+'"]')?.value || ''
       });
     });
-    const header=['manual','used','used_source','identifier','manufacturer','model_name','model_code','device','color','storage','carrier','icloud_lock','condition_hint','estimated_purchase_date','quantity','unit_price_cents','line_total_cents','suggested_price_cents','notes'];
-    const lines=[header.join(',')];
-    payload.forEach(o=>lines.push(header.map(k=>JSON.stringify((o[k]!=null?String(o[k]):'').replace(/^\uFEFF/,''))).join(',')));
-    const blob=new Blob([lines.join('\n')],{type:'text/csv'}); const url=URL.createObjectURL(blob);
-    const a=document.createElement('a'); a.href=url; a.download='intake_export.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    state.manual.forEach((r, idx) => {
+      const paid = document.querySelector('.mpaid[data-idx="'+idx+'"]')?.value;
+      const cents = isFinite(Number(paid)) ? Math.round(Number(paid)*100) : '';
+      payload.push({
+        manual:'yes', used: (r.ui?.condition==='Used')?'yes':'no', used_source:'',
+        identifier: document.querySelector('.mident[data-idx="'+idx+'"]')?.value.trim() || '',
+        manufacturer:'', model_name:'', model_code:'',
+        device:r.device||'', color:r.color||'', storage:r.ui?.storage||r.storage||'', carrier:r.ui?.carrier||'Unlocked',
+        icloud_lock:'', condition_hint:'', estimated_purchase_date:'',
+        quantity:1, unit_price_cents:cents, line_total_cents:cents, suggested_price_cents:'', notes: document.querySelector('.mnote[data-idx="'+idx+'"]')?.value || ''
+      });
+    });
+    const header = ['manual','used','used_source','identifier','manufacturer','model_name','model_code','device','color','storage','carrier','icloud_lock','condition_hint','estimated_purchase_date','quantity','unit_price_cents','line_total_cents','suggested_price_cents','notes'];
+    const lines = [header.join(',')];
+    payload.forEach(o => lines.push(header.map(k => JSON.stringify((o[k]!=null?String(o[k]):'').replace(/^\\uFEFF/, ''))).join(',')));
+    const blob = new Blob([lines.join('\\n')], { type:'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'intake_export.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   };
 }
 
-/* ---- Global delegated click for chips ---- */
-(function setupChipClicks(){
-  const menu=document.getElementById('menu');
-  document.addEventListener('click', async function(e){
-    const chip = e.target.closest && e.target.closest('.chip');
-    if (chip) { e.preventDefault(); await openMenuFor(chip, menu); return; }
-    if (!menu.contains(e.target)) menu.classList.remove('show');
-  });
-})();
+/* ---------- Menus for chips ---------- */
+function attachChipMenus() {
+  const menu = document.getElementById('menu');
+  function closeMenu(){ menu.classList.remove('show'); }
+  document.addEventListener('click', e => { if (!menu.contains(e.target) && !e.target.classList.contains('chip')) closeMenu(); });
 
-async function openMenuFor(target, menu){
-  const kind=target.getAttribute('data-kind');
-  const rowkind=target.getAttribute('data-rowkind');
-  const idx=parseInt(target.getAttribute('data-idx'),10);
-  const row = rowkind==='api' ? state.rows[idx] : state.manual[idx];
-  if(!row) return;
+  function openMenuFor(target) {
+    const kind = target.getAttribute('data-kind'); // cond | car | store
+    const rowkind = target.getAttribute('data-rowkind'); // api | manual
+    const idx = parseInt(target.getAttribute('data-idx'), 10);
+    const row = rowkind === 'api' ? state.rows[idx] : state.manual[idx];
 
-  let items=[]; if(kind==='cond') items=['New','Used']; if(kind==='car') items=CARRIERS.slice(); if(kind==='store') items=STORAGES.slice();
-  menu.innerHTML = items.map(v=>`<div class="menu-item" data-v="${v}">${v}</div>`).join('');
-  const rect=target.getBoundingClientRect(); menu.style.left=(window.scrollX+rect.left)+'px'; menu.style.top=(window.scrollY+rect.bottom+6)+'px'; menu.classList.add('show');
+    let items = [];
+    if (kind === 'cond') items = ['New','Used'];
+    if (kind === 'car') items = CARRIERS.slice();
+    if (kind === 'store') items = STORAGES.slice();
 
-  Array.from(menu.querySelectorAll('.menu-item')).forEach(mi=>{
-    mi.onclick = async function(){
-      const v=mi.getAttribute('data-v');
-      row.ui=row.ui||{};
-      if(kind==='cond') row.ui.condition=v;
-      if(kind==='car') row.ui.carrier=v;
-      if(kind==='store') row.ui.storage=v;
+    menu.innerHTML = items.map(v=>`<div class="menu-item" data-v="${v}">${v}</div>`).join('');
+    const rect = target.getBoundingClientRect();
+    menu.style.left = (window.scrollX + rect.left) + 'px';
+    menu.style.top  = (window.scrollY + rect.bottom + 6) + 'px';
+    menu.classList.add('show');
 
-      // Make sure variants exist, then recalc and write price
-      await ensureVariants(row);
-      const autop=autoPriceDollars(row);
-      if (autop !== '') setUserPrice(row, autop);
-      render();
-    };
-  });
+    Array.from(menu.querySelectorAll('.menu-item')).forEach(mi => {
+      mi.onclick = async function(){
+        const v = mi.getAttribute('data-v');
+        row.ui = row.ui || {};
+        if (kind === 'cond') row.ui.condition = v;
+        if (kind === 'car') row.ui.carrier = v;
+        if (kind === 'store') row.ui.storage = v;
+
+        await ensureVariants(row);                 // make sure variants are present
+        const autop = autoPriceDollars(row);       // new autoprice for selected variant
+        setUserPrice(row, autop);                  // set as current visible price
+        render();                                  // refresh UI
+      };
+    });
+  }
+
+  document.querySelectorAll('.chip').forEach(ch => { ch.onclick = () => openMenuFor(ch); });
 }
 
 /* ---------- Totals ---------- */
-function computeTotals(){
-  let total=0;
-  document.querySelectorAll('.paid').forEach(inp=>{ const v=Number(inp.value||''); if(isFinite(v)) total+=v; });
-  document.getElementById('totals').innerText='Total: $'+Math.round(total);
+function computeTotals() {
+  let total = 0;
+  document.querySelectorAll('.paid,.mpaid').forEach(inp => { const v = Number(inp.value || ''); if (isFinite(v)) total += v; });
+  document.getElementById('totals').innerText = 'Total: $' + Math.round(total);
 }
 
-/* ---------- Submit IMEIs ---------- */
-document.getElementById('form').onsubmit = async function(e){
+/* ---------- Controls ---------- */
+document.getElementById('reset').onclick = function() {
+  document.getElementById('imeis').value = '';
+  state.rows = [];
+  state.manual = [];
+  document.getElementById('out').innerHTML = '';
+  document.getElementById('totals').innerText = '';
+};
+
+/* Add manual rows */
+document.getElementById('addManual').onclick = function(e) {
   e.preventDefault();
-  const raw=document.getElementById('imeis').value||''; const imeis=raw.split(/[\s,;\n\r]+/).map(s=>s.trim()).filter(Boolean).slice(0,200);
-  if(!imeis.length) return;
-  const loader=document.getElementById('loader'); const btn=document.getElementById('lookupBtn');
-  loader.classList.add('show'); btn.disabled=true; btn.innerText='Looking up…';
-  try{
-    const res=await fetch('/api/intake',{ method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({ imeis }) });
-    const data=await res.json(); if(!res.ok) throw new Error(data.error||'Lookup failed');
-    state.rows=(data.items||[]).map(x=>{ x.ui=x.ui||{ condition:x.used?'Used':'New', carrier:(x.carrier && CARRIERS.includes(x.carrier))?x.carrier:'Unlocked', storage:x.storage||'' }; return x; });
-    // Ensure all rows have variants & set initial "Price Paid"
-    await Promise.all(state.rows.map(async (r)=>{ await ensureVariants(r); const v=autoPriceDollars(r); if(v!==''){ setUserPrice(r, v); } else if(typeof r.suggested_price_dollars==='number'){ setUserPrice(r, r.suggested_price_dollars); } }));
+  const device  = document.getElementById('m_device').value.trim();
+  const color   = document.getElementById('m_color').value.trim();
+  const storage = document.getElementById('m_storage').value.trim();
+  const carrier = document.getElementById('m_carrier').value || 'Unlocked';
+  const qty     = Math.max(1, Number(document.getElementById('m_qty').value || '1'));
+  const unitPrice = Number(document.getElementById('m_price').value || '');
+  if (!device) return;
+  for (let i=0;i<qty;i++) state.manual.push({ device, color, storage, carrier, identifier:'', unitPrice: isFinite(unitPrice)?unitPrice:0, notes:'', ui:{ condition:'New', carrier, storage } });
+  render();
+  setTimeout(() => { const firstEmpty = Array.prototype.find.call(document.querySelectorAll('.mident'), inp => !inp.value); if (firstEmpty) firstEmpty.focus(); }, 0);
+};
+
+/* Submit IMEIs */
+document.getElementById('form').onsubmit = async function(e) {
+  e.preventDefault();
+  const raw = document.getElementById('imeis').value || '';
+  const imeis = raw.split(/[\\s,;\\n\\r]+/).map(s=>s.trim()).filter(Boolean).slice(0,200);
+  if (!imeis.length) return;
+  const loader = document.getElementById('loader');
+  const btn = document.getElementById('lookupBtn');
+  loader.classList.add('show'); btn.disabled = true; btn.innerText = 'Looking up…';
+  try {
+    const res = await fetch('/api/intake', { method: 'POST', headers: { 'content-type':'application/json' }, body: JSON.stringify({ imeis }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Lookup failed');
+    state.rows = (data.items || []).map(x => { x.ui = x.ui || { condition: x.used? 'Used':'New', carrier: (x.carrier && CARRIERS.includes(x.carrier))? x.carrier : 'Unlocked', storage: x.storage || '' }; return x; });
+    // variants are already on each row from the server; if not, we'll fetch on first chip change
     render();
-  }catch(err){ alert(String(err && err.message ? err.message : err)); console.error(err); }
-  finally{ loader.classList.remove('show'); btn.disabled=false; btn.innerText='Lookup & Price'; }
+  } catch(err) {
+    alert(String(err && err.message ? err.message : err));
+    console.error(err);
+  } finally {
+    loader.classList.remove('show'); btn.disabled = false; btn.innerText = 'Lookup & Price';
+  }
 };
 </script>
 </body>
