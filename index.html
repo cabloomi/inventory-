@@ -1,0 +1,146 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Inventory Intake (Cloudflare Pages)</title>
+<style>
+  body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#0b0f14; color:#e6f1ff; margin:0; }
+  .wrap { max-width: 1100px; margin: 20px auto; padding: 16px; background:#0f141a; border-radius:14px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+  h1 { margin-top:0; }
+  textarea { width:100%; min-height: 140px; border-radius:10px; padding:10px; background:#0d1218; color:#def; border:1px solid #213244; }
+  .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .btn { background:#00e29b; color:#062612; border:none; border-radius:10px; padding:10px 14px; font-weight:700; cursor:pointer; }
+  .btn.secondary { background:#18344a; color:#bfeaff; }
+  .muted { opacity:.7; font-size: 13px; }
+  table { width:100%; border-collapse: collapse; margin-top: 16px; }
+  th, td { padding: 10px 8px; border-bottom: 1px solid #213244; vertical-align: top; }
+  th { text-align:left; color:#bfeaff; }
+  input[type="text"], input[type="number"] { background:#0d1218; color:#def; border:1px solid #213244; border-radius:8px; padding:8px; width:100%; }
+  .tag { display:inline-block; padding:2px 8px; border-radius:999px; background:#1b2a3a; color:#bfeaff; font-size:12px; }
+  .right { text-align:right; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Inventory Intake (Pages Functions)</h1>
+  <p class="muted">Paste IMEIs, we’ll fetch device info from Sickw (service 6) and price from your live CSV.</p>
+
+  <div id="balance" class="muted"></div>
+
+  <form id="form">
+    <label><b>Enter IMEIs (one per line, comma or space separated):</b></label>
+    <textarea id="imeis" placeholder="354442067957452&#10;353052118765432&#10;..."></textarea>
+    <div class="row" style="margin-top:10px;">
+      <button class="btn" type="submit">Lookup & Price</button>
+      <button class="btn secondary" id="reset" type="button">Reset</button>
+      <span class="muted">We’ll fetch Sickw details and suggest a price via your prices.csv.</span>
+    </div>
+  </form>
+
+  <div id="out"></div>
+</div>
+
+<script>
+async function fetchBalance() {
+  try {
+    const r = await fetch('/api/balance');
+    const j = await r.json();
+    document.getElementById('balance').innerHTML = 'API Balance: <span class="tag">' + (j.balance || '—') + '</span>';
+  } catch {}
+}
+fetchBalance();
+
+document.getElementById('reset').onclick = () => {
+  document.getElementById('imeis').value = '';
+  document.getElementById('out').innerHTML = '';
+};
+
+document.getElementById('form').onsubmit = async (e) => {
+  e.preventDefault();
+  const raw = document.getElementById('imeis').value || '';
+  const imeis = raw.split(/[\s,;\n\r]+/).map(s=>s.trim()).filter(Boolean).slice(0,200);
+  if (!imeis.length) return;
+
+  const res = await fetch('/api/intake', {
+    method: 'POST',
+    headers: { 'content-type':'application/json' },
+    body: JSON.stringify({ imeis })
+  });
+  const data = await res.json();
+
+  const el = document.getElementById('out');
+  if (!res.ok) {
+    el.innerHTML = '<div class="err">' + (data.error || 'Error') + '</div>';
+    return;
+  }
+
+  const rows = data.items || [];
+  const table = [];
+  table.push(`<table>
+    <thead>
+      <tr>
+        <th>IMEI</th>
+        <th>Device</th>
+        <th>Matched (Sheet)</th>
+        <th class="right">Base (¢)</th>
+        <th class="right">Suggested (¢)</th>
+        <th>Confidence</th>
+        <th>Condition</th>
+        <th>Price Paid (¢)</th>
+        <th>Notes</th>
+      </tr>
+    </thead><tbody>`);
+
+  rows.forEach((r, idx) => {
+    if (!r.ok) {
+      table.push(`<tr><td colspan="9" class="err">IMEI ${r.imei} → ${r.error || 'error'}</td></tr>`);
+      return;
+    }
+    table.push(`<tr>
+      <td><code>${r.imei}</code></td>
+      <td>${(r.device_display || ((r.manufacturer||'') + ' ' + (r.model_name||''))).trim()}</td>
+      <td><div>${r.match_device || '—'}</div><div class="muted">${r.match_sheet || ''}</div></td>
+      <td class="right">${r.base_price_cents ?? ''}</td>
+      <td class="right"><b>${r.suggested_price_cents ?? ''}</b></td>
+      <td><span class="tag">${((r.confidence||0)*100).toFixed(1)}%</span></td>
+      <td><input type="text" id="cond_${idx}" placeholder="A/B/C"/></td>
+      <td><input type="number" id="paid_${idx}" placeholder="${r.suggested_price_cents ?? ''}"/></td>
+      <td><input type="text" id="note_${idx}" /></td>
+    </tr>`);
+  });
+
+  table.push(`</tbody></table>
+    <div class="row" style="margin-top:12px;">
+      <button class="btn" id="download">Download CSV</button>
+      <span class="muted">Import this into your purchase list.</span>
+    </div>`);
+
+  el.innerHTML = table.join('');
+
+  document.getElementById('download').onclick = () => {
+    const payload = rows.map((r, idx) => r.ok ? ({
+      imei: r.imei,
+      manufacturer: r.manufacturer || '',
+      model_name: r.model_name || '',
+      model_code: r.model_code || '',
+      suggested_price_cents: r.suggested_price_cents ?? '',
+      condition: (document.getElementById('cond_'+idx)?.value || '').trim(),
+      price_paid_cents: (document.getElementById('paid_'+idx)?.value || '').trim(),
+      notes: (document.getElementById('note_'+idx)?.value || '').trim(),
+    }) : null).filter(Boolean);
+
+    const header = ['imei','manufacturer','model_name','model_code','suggested_price_cents','condition','price_paid_cents','notes'];
+    const csv = [header.join(',')].concat(payload.map(o =>
+      header.map(k => JSON.stringify(String(o[k] ?? '')).replace(/^\uFEFF/, '')).join(',')
+    )).join('\n');
+
+    const blob = new Blob([csv], { type:'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = Object.assign(document.createElement('a'), { href: url, download: 'intake_export.csv' });
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  };
+};
+</script>
+</body>
+</html>
