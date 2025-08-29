@@ -29,7 +29,6 @@
   .loader.show { display:flex; }
   .spinner { width:42px; height:42px; border:5px solid #1b2a3a; border-top-color:#00e29b; border-radius:50%; animation: spin 0.9s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-
   /* typeahead */
   .typeahead { position: relative; flex: 2 1 260px; }
   .suggestions {
@@ -38,9 +37,7 @@
     margin-top: 6px; max-height: 320px; overflow-y: auto; z-index: 50;
     box-shadow: 0 10px 25px rgba(0,0,0,.35);
   }
-  .sug-item {
-    padding: 10px; cursor: pointer; display:flex; align-items: center; justify-content: space-between; gap: 10px;
-  }
+  .sug-item { padding: 10px; cursor: pointer; display:flex; align-items: center; justify-content: space-between; gap: 10px; }
   .sug-item:hover, .sug-item.active { background: #13202d; }
   .sug-left { display:flex; flex-direction: column; }
   .sug-device { font-weight: 600; color:#dff3ff; }
@@ -77,14 +74,8 @@
     <input type="text" id="m_storage" placeholder="Storage (e.g., 256GB)" style="flex: 1 1 140px;" />
     <select id="m_carrier">
       <option value="Unknown">Carrier</option>
-      <option>Unlocked</option>
-      <option>Verizon</option>
-      <option>T-Mobile</option>
-      <option>AT&T</option>
-      <option>Xfinity</option>
-      <option>Spectrum</option>
-      <option>US Cellular</option>
-      <option>Cricket</option>
+      <option>Unlocked</option><option>Verizon</option><option>T-Mobile</option><option>AT&T</option>
+      <option>Xfinity</option><option>Spectrum</option><option>US Cellular</option><option>Cricket</option>
     </select>
     <input type="number" id="m_qty" placeholder="Qty" min="1" step="1" value="1" style="width:90px" />
     <input type="number" id="m_price" placeholder="Unit Price ($)" min="0" step="1" style="width:140px" />
@@ -110,7 +101,7 @@ fetchBalance();
 
 var state = { rows: [], manual: [] };
 
-/* ---------- Manual item typeahead ---------- */
+/* ---------- Manual typeahead (from /api/search) ---------- */
 (function setupTypeahead() {
   var input = document.getElementById('m_device');
   var box   = document.getElementById('m_suggest');
@@ -148,12 +139,8 @@ var state = { rows: [], manual: [] };
     if (!arr.length) { hide(); return; }
     var html = arr.map(function(r, i) {
       return '<div class="sug-item" data-idx="'+i+'">'
-        + '<div class="sug-left">'
-        +   '<div class="sug-device">'+ r.device +'</div>'
-        +   '<div class="sug-sheet">'+ (r.sheet || '') +'</div>'
-        + '</div>'
-        + '<div class="sug-price">$'+ (r.price_dollars || 0) +'</div>'
-        + '</div>';
+        + '<div class="sug-left"><div class="sug-device">'+ r.device +'</div><div class="sug-sheet">'+ (r.sheet || '') +'</div></div>'
+        + '<div class="sug-price">$'+ (r.price_dollars || 0) +'</div></div>';
     }).join('');
     box.innerHTML = html;
     Array.prototype.forEach.call(box.querySelectorAll('.sug-item'), function(el) {
@@ -166,9 +153,7 @@ var state = { rows: [], manual: [] };
     show();
   }
 
-  function debounce(fn, ms) {
-    var t; return function(){ clearTimeout(t); var args=arguments; t=setTimeout(function(){ fn.apply(null,args); }, ms); };
-  }
+  function debounce(fn, ms) { var t; return function(){ clearTimeout(t); var args=arguments; t=setTimeout(function(){ fn.apply(null,args); }, ms); }; }
 
   var doFetch = debounce(async function(q) {
     if (!q || q.length < 2) { hide(); return; }
@@ -178,52 +163,37 @@ var state = { rows: [], manual: [] };
     try {
       const res = await fetch('/api/search?q=' + encodeURIComponent(q) + '&limit=20');
       const data = await res.json();
-      if (inflight !== myTicket) return; // out-of-order guard
+      if (inflight !== myTicket) return;
       renderList((data && data.results) ? data.results : []);
-    } catch (e) {
-      hide();
-    }
+    } catch (e) { hide(); }
   }, 180);
 
-  input.addEventListener('input', function() {
-    var q = input.value.trim();
-    doFetch(q);
-  });
+  input.addEventListener('input', function() { doFetch(input.value.trim()); });
 
   input.addEventListener('keydown', function(e) {
     var items = box.querySelectorAll('.sug-item');
     if (box.style.display === 'none' || !items.length) return;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      activeIdx = (activeIdx + 1) % items.length;
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      activeIdx = (activeIdx - 1 + items.length) % items.length;
-    } else if (e.key === 'Enter') {
+    if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = (activeIdx + 1) % items.length; }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = (activeIdx - 1 + items.length) % items.length; }
+    else if (e.key === 'Enter') {
       e.preventDefault();
       if (activeIdx >= 0 && activeIdx < items.length) {
         var idx = parseInt(items[activeIdx].getAttribute('data-idx'), 10);
-        var results = Array.from(items).map(function(it){
-          return {
-            device: it.querySelector('.sug-device').textContent,
-            sheet:  it.querySelector('.sug-sheet').textContent,
-            price_dollars: Number(it.querySelector('.sug-price').textContent.replace(/^\D+/, '')) || 0
-          };
+        var it = items[activeIdx];
+        selectItem({
+          device: it.querySelector('.sug-device').textContent,
+          sheet:  it.querySelector('.sug-sheet').textContent,
+          price_dollars: Number(it.querySelector('.sug-price').textContent.replace(/^\D+/, '')) || 0
         });
-        selectItem(results[activeIdx]);
       }
-    } else if (e.key === 'Escape') {
-      hide();
-    }
-    Array.prototype.forEach.call(items, function(el, i){
-      if (i === activeIdx) el.classList.add('active'); else el.classList.remove('active');
-    });
+    } else if (e.key === 'Escape') { hide(); }
+    Array.prototype.forEach.call(items, function(el, i){ if (i === activeIdx) el.classList.add('active'); else el.classList.remove('active'); });
   });
 
   input.addEventListener('blur', function() { setTimeout(hide, 120); });
 })();
 
-/* ---------- Existing rendering / download / totals ---------- */
+/* ---------- Render table ---------- */
 function render() {
   var rows = state.rows;
   var mrows = state.manual;
@@ -231,7 +201,7 @@ function render() {
   var el = document.getElementById('out');
   var table = [];
   table.push('<table><thead><tr>'
-    + '<th>IMEI</th>'
+    + '<th>Identifier (IMEI / Serial)</th>'
     + '<th>Device</th>'
     + '<th>Color</th>'
     + '<th>Storage</th>'
@@ -242,32 +212,23 @@ function render() {
     + '<th>Notes</th>'
     + '</tr></thead><tbody>');
 
+  /* API rows (identifier = IMEI, qty=1) */
   rows.forEach(function(r, idx) {
     if (!r.ok) {
       table.push('<tr><td colspan="9" class="err">IMEI ' + r.imei + ' → ' + (r.error || 'error') + '</td></tr>');
       return;
     }
     var warnIcloud = r.icloud_lock_on ? '<span class="tag red">iCloud Lock: ON</span>' : '';
-    var hint = r.condition_hint === 'assume_used'
-      ? '<span class="tag red">Assume Used</span>'
-      : (r.condition_hint === 'check_for_use' ? '<span class="tag yellow">Check for signs of use</span>' : '');
+    var hint = r.condition_hint === 'assume_used' ? '<span class="tag red">Assume Used</span>'
+              : (r.condition_hint === 'check_for_use' ? '<span class="tag yellow">Check for signs of use</span>' : '');
     var usedTag = r.used ? '<span class="tag green">Used</span>' : '';
-
-    var purchInfo = r.estimated_purchase_date
-      ? '<div class="muted">Est. Purchase: ' + r.estimated_purchase_date + (typeof r.estimated_purchase_age_days === 'number' ? ' (' + r.estimated_purchase_age_days + 'd ago)' : '') + '</div>'
-      : '';
-
+    var purchInfo = r.estimated_purchase_date ? '<div class="muted">Est. Purchase: ' + r.estimated_purchase_date + (typeof r.estimated_purchase_age_days === 'number' ? ' (' + r.estimated_purchase_age_days + 'd ago)' : '') + '</div>' : '';
     var display = (r.device_display || ((r.manufacturer || '') + ' ' + (r.model_name || ''))).trim();
     var paidDollars = (typeof r.suggested_price_dollars === 'number') ? r.suggested_price_dollars : '';
 
     table.push('<tr>'
       + '<td><code>' + r.imei + '</code></td>'
-      + '<td>' + display
-        + (warnIcloud ? ('<div>' + warnIcloud + '</div>') : '')
-        + (hint ? ('<div>' + hint + '</div>') : '')
-        + (usedTag ? ('<div>' + usedTag + '</div>') : '')
-        + (purchInfo || '')
-      + '</td>'
+      + '<td>' + display + (warnIcloud?'<div>'+warnIcloud+'</div>':'') + (hint?'<div>'+hint+'</div>':'') + (usedTag?'<div>'+usedTag+'</div>':'') + (purchInfo||'') + '</td>'
       + '<td>' + (r.color || '') + '</td>'
       + '<td>' + (r.storage || '') + '</td>'
       + '<td><span class="tag">' + (r.carrier || 'Unknown') + '</span></td>'
@@ -278,16 +239,17 @@ function render() {
       + '</tr>');
   });
 
+  /* Manual rows (identifier input; qty=1 per row) */
   mrows.forEach(function(r, idx) {
     table.push('<tr>'
-      + '<td><em class="muted">manual</em></td>'
+      + '<td><input type="text" class="mident" data-idx="'+idx+'" placeholder="IMEI or Serial" value="'+ (r.identifier || '') + '"/></td>'
       + '<td>' + (r.device || '') + '</td>'
       + '<td>' + (r.color || '') + '</td>'
       + '<td>' + (r.storage || '') + '</td>'
       + '<td><span class="tag">' + (r.carrier || 'Unknown') + '</span></td>'
       + '<td><div class="muted">—</div></td>'
       + '<td class="right"><input type="number" class="mpaid" data-idx="' + idx + '" value="' + (r.unitPrice || '') + '" step="1" min="0" /></td>'
-      + '<td class="right"><input type="number" class="mqty" data-idx="' + idx + '" value="' + (r.qty || 1) + '" step="1" min="1" style="width:80px"/></td>'
+      + '<td class="right">1</td>'
       + '<td><input type="text" class="mnote" data-idx="' + idx + '" value="' + (r.notes || '') + '" /></td>'
       + '</tr>');
   });
@@ -295,76 +257,70 @@ function render() {
   table.push('</tbody></table>'
     + '<div class="row" style="margin-top:12px;">'
     + '  <button class="btn" id="download">Download CSV</button>'
-    + '  <span class="muted">CSV exports price paid in <b>cents</b>, includes <b>quantity</b> & <b>line total</b>, and marks <b>used</b>.</span>'
+    + '  <span class="muted">CSV now has a single <b>identifier</b> column (IMEI or Serial).</span>'
     + '</div>');
 
   el.innerHTML = table.join('');
 
-  Array.prototype.forEach.call(document.querySelectorAll('.paid,.mpaid,.mqty'), function(inp) {
+  /* totals update */
+  Array.prototype.forEach.call(document.querySelectorAll('.paid,.mpaid'), function(inp) {
     inp.addEventListener('input', computeTotals);
   });
 
+  /* Enter → focus next identifier (manual rows) */
+  var idents = Array.prototype.slice.call(document.querySelectorAll('.mident'));
+  idents.forEach(function(inp, i) {
+    inp.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        var next = idents[i + 1];
+        if (next) next.focus();
+      }
+    });
+  });
+
+  /* Download CSV */
   document.getElementById('download').onclick = function() {
     var payload = [];
+
+    /* API rows */
     state.rows.forEach(function(r, idx) {
       if (!r.ok) return;
       var paidEl = document.querySelector('.paid[data-kind="api"][data-idx="' + idx + '"]');
       var noteEl = document.querySelector('.note[data-kind="api"][data-idx="' + idx + '"]');
       var dollars = Number((paidEl && paidEl.value) ? paidEl.value : '');
       var cents = isFinite(dollars) ? Math.round(dollars * 100) : '';
-      var note = noteEl ? noteEl.value : '';
       payload.push({
-        manual: 'no',
-        used: r.used ? 'yes' : 'no',
-        used_source: r.used_source || '',
-        imei: r.imei,
-        manufacturer: r.manufacturer || '',
-        model_name: r.model_name || '',
-        model_code: r.model_code || '',
-        device: r.device_display || '',
-        color: r.color || '',
-        storage: r.storage || '',
-        carrier: r.carrier || 'Unknown',
-        icloud_lock: r.icloud_lock_on ? 'ON' : 'OFF',
-        condition_hint: r.condition_hint || '',
-        estimated_purchase_date: r.estimated_purchase_date || '',
-        quantity: 1,
-        unit_price_cents: cents,
-        line_total_cents: cents,
+        manual: 'no', used: r.used ? 'yes' : 'no', used_source: r.used_source || '',
+        identifier: r.imei,                    /* unified field */
+        manufacturer: r.manufacturer || '', model_name: r.model_name || '', model_code: r.model_code || '',
+        device: r.device_display || '', color: r.color || '', storage: r.storage || '', carrier: r.carrier || 'Unknown',
+        icloud_lock: r.icloud_lock_on ? 'ON' : 'OFF', condition_hint: r.condition_hint || '', estimated_purchase_date: r.estimated_purchase_date || '',
+        quantity: 1, unit_price_cents: cents, line_total_cents: cents,
         suggested_price_cents: (typeof r.suggested_price_cents !== 'undefined' ? r.suggested_price_cents : ''),
-        notes: (note || '').trim()
-      });
-    });
-    state.manual.forEach(function(r, idx) {
-      var paidEl = document.querySelector('.mpaid[data-idx="' + idx + '"]');
-      var qtyEl  = document.querySelector('.mqty[data-idx="' + idx + '"]');
-      var noteEl = document.querySelector('.mnote[data-idx="' + idx + '"]');
-      var dollars = Number((paidEl && paidEl.value) ? paidEl.value : '');
-      var qty = Number((qtyEl && qtyEl.value) ? qtyEl.value : '1');
-      var cents = isFinite(dollars) ? Math.round(dollars * 100) : 0;
-      payload.push({
-        manual: 'yes',
-        used: '', used_source: '',
-        imei: '',
-        manufacturer: '',
-        model_name: '',
-        model_code: '',
-        device: r.device || '',
-        color: r.color || '',
-        storage: r.storage || '',
-        carrier: r.carrier || 'Unknown',
-        icloud_lock: '',
-        condition_hint: '',
-        estimated_purchase_date: '',
-        quantity: qty,
-        unit_price_cents: cents,
-        line_total_cents: cents * Math.max(1, qty),
-        suggested_price_cents: '',
-        notes: noteEl ? noteEl.value : ''
+        notes: (noteEl ? noteEl.value : '')
       });
     });
 
-    var header = ['manual','used','used_source','imei','manufacturer','model_name','model_code','device','color','storage','carrier','icloud_lock','condition_hint','estimated_purchase_date','quantity','unit_price_cents','line_total_cents','suggested_price_cents','notes'];
+    /* Manual rows */
+    state.manual.forEach(function(r, idx) {
+      var paidEl = document.querySelector('.mpaid[data-idx="' + idx + '"]');
+      var noteEl = document.querySelector('.mnote[data-idx="' + idx + '"]');
+      var identEl = document.querySelector('.mident[data-idx="' + idx + '"]');
+      var dollars = Number((paidEl && paidEl.value) ? paidEl.value : '');
+      var cents = isFinite(dollars) ? Math.round(dollars * 100) : 0;
+      payload.push({
+        manual: 'yes', used: '', used_source: '',
+        identifier: identEl ? identEl.value.trim() : '',  /* unified field */
+        manufacturer: '', model_name: '', model_code: '',
+        device: r.device || '', color: r.color || '', storage: r.storage || '', carrier: r.carrier || 'Unknown',
+        icloud_lock: '', condition_hint: '', estimated_purchase_date: '',
+        quantity: 1, unit_price_cents: cents, line_total_cents: cents,
+        suggested_price_cents: '', notes: noteEl ? noteEl.value : ''
+      });
+    });
+
+    var header = ['manual','used','used_source','identifier','manufacturer','model_name','model_code','device','color','storage','carrier','icloud_lock','condition_hint','estimated_purchase_date','quantity','unit_price_cents','line_total_cents','suggested_price_cents','notes'];
     var lines = [header.join(',')];
     payload.forEach(function(o) {
       var row = header.map(function(k) {
@@ -377,31 +333,28 @@ function render() {
 
     var blob = new Blob([csv], { type:'text/csv' });
     var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url; a.download = 'intake_export.csv';
-    document.body.appendChild(a); a.click(); a.remove();
-    URL.revokeObjectURL(url);
+    var a = document.createElement('a'); a.href = url; a.download = 'intake_export.csv';
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   };
 
   computeTotals();
 }
 
+/* ---------- Totals ---------- */
 function computeTotals() {
   var totalDollars = 0;
   Array.prototype.forEach.call(document.querySelectorAll('.paid'), function(inp) {
     var v = Number(inp.value || '');
     if (isFinite(v)) totalDollars += v;
   });
-  state.manual.forEach(function(r, idx) {
-    var paidEl = document.querySelector('.mpaid[data-idx="' + idx + '"]');
-    var qtyEl  = document.querySelector('.mqty[data-idx="' + idx + '"]');
-    var dollars = Number((paidEl && paidEl.value) ? paidEl.value : '');
-    var qty = Number((qtyEl && qtyEl.value) ? qtyEl.value : '1');
-    if (isFinite(dollars) && isFinite(qty)) totalDollars += dollars * Math.max(1, qty);
+  Array.prototype.forEach.call(document.querySelectorAll('.mpaid'), function(inp) {
+    var v = Number(inp.value || '');
+    if (isFinite(v)) totalDollars += v;
   });
   document.getElementById('totals').innerText = 'Total: $' + Math.round(totalDollars);
 }
 
+/* ---------- Controls ---------- */
 document.getElementById('reset').onclick = function() {
   document.getElementById('imeis').value = '';
   state.rows = [];
@@ -410,22 +363,33 @@ document.getElementById('reset').onclick = function() {
   document.getElementById('totals').innerText = '';
 };
 
+/* Add manual → explode into N rows (identifier input per row) */
 document.getElementById('addManual').onclick = function(e) {
   e.preventDefault();
   var device  = document.getElementById('m_device').value.trim();
   var color   = document.getElementById('m_color').value.trim();
   var storage = document.getElementById('m_storage').value.trim();
   var carrier = document.getElementById('m_carrier').value || 'Unknown';
-  var qty     = Number(document.getElementById('m_qty').value || '1');
+  var qty     = Math.max(1, Number(document.getElementById('m_qty').value || '1'));
   var unitPrice = Number(document.getElementById('m_price').value || '');
   if (!device) return;
-  state.manual.push({
-    device: device, color: color, storage: storage, carrier: carrier,
-    qty: Math.max(1, qty), unitPrice: isFinite(unitPrice) ? unitPrice : 0, notes: ''
-  });
+
+  for (var i=0; i<qty; i++) {
+    state.manual.push({
+      device: device, color: color, storage: storage, carrier: carrier,
+      identifier: '', unitPrice: isFinite(unitPrice) ? unitPrice : 0, notes: ''
+    });
+  }
   render();
+
+  /* focus first empty identifier */
+  setTimeout(function() {
+    var firstEmpty = Array.prototype.find.call(document.querySelectorAll('.mident'), function(inp){ return !inp.value; });
+    if (firstEmpty) firstEmpty.focus();
+  }, 0);
 };
 
+/* IMEI lookup submit */
 document.getElementById('form').onsubmit = async function(e) {
   e.preventDefault();
   var raw = document.getElementById('imeis').value || '';
