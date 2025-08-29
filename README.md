@@ -91,6 +91,31 @@ The system uses an SQLite database with the following main tables:
 - All user actions are logged in the audit log
 - API keys should be stored as environment variables in production
 
+## Optimizations
+
+### 1. Code Organization
+
+- **Modular Architecture**: Reorganized code into utility modules for better reusability and maintainability
+- **Shared Utilities**: Created common utilities for CSV parsing, string operations, device matching, API handling, and caching
+- **Consistent Patterns**: Standardized error handling, response formatting, and data processing across the codebase
+
+### 2. Performance Improvements
+
+- **Optimized CSV Parsing**: Replaced custom CSV parsing with more efficient implementations
+- **Improved String Operations**: Enhanced string normalization and comparison functions
+- **Better Device Matching**: More accurate and efficient device matching algorithms
+- **Caching Mechanisms**: Added memory caching for frequently accessed data
+- **Parallel Processing**: Implemented batch processing for handling multiple IMEIs concurrently
+- **Optimized Levenshtein Distance**: Enhanced string similarity calculations with early termination
+
+### 3. Utility Modules
+
+- **CSV Utilities**: Efficient CSV parsing and manipulation
+- **String Utilities**: Text normalization, Levenshtein distance calculation, and string similarity scoring
+- **Device Matcher**: Improved device matching algorithms and brand/model identification
+- **API Utilities**: Consistent response formatting and error handling
+- **Cache Utilities**: In-memory caching with expiration and function memoization
+
 ## License
 
 This software is proprietary and confidential. Unauthorized copying, distribution, or use is prohibited.
