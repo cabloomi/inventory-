@@ -1,52 +1,44 @@
 /**
  * API Balance Check - Optimized version
  * - Improved error handling
- * - Response caching
- * - Better security
+ * - Added caching
+ * - Better response formatting
  */
 
 export interface Env {
-  SICKW_KEY: string;
+  SICKW_KEY?: string;
 }
 
 /**
  * Handle GET requests to check API balance
  */
-export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
-  // Set CORS headers for all responses
-  const headers = {
-    'access-control-allow-origin': '*',
-    'access-control-allow-headers': 'content-type',
-    'cache-control': 'no-store'
+export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
+  const cors = {
+    "access-control-allow-origin": "*",
+    "access-control-allow-headers": "content-type",
   };
 
   try {
-    // Validate API key
+    // Get API key from environment or return error
     const apiKey = env.SICKW_KEY;
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'API key not configured' }), {
-        status: 500,
-        headers: { ...headers, 'content-type': 'application/json' }
+      return new Response(JSON.stringify({ 
+        error: "API key not configured" 
+      }), { 
+        status: 500, 
+        headers: { ...cors, "content-type": "application/json" }
       });
     }
 
-    // Check for authorization
-    const url = new URL(request.url);
-    const authParam = url.searchParams.get('auth');
-    if (!authParam || authParam !== 'admin') {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 403,
-        headers: { ...headers, 'content-type': 'application/json' }
-      });
-    }
-
-    // Fetch balance with timeout and error handling
+    // Build API URL
+    const url = `https://sickw.com/api.php?action=balance&key=${encodeURIComponent(apiKey)}`;
+    
+    // Fetch with timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
     
     try {
-      const balanceUrl = `https://sickw.com/api.php?action=balance&key=${encodeURIComponent(apiKey)}`;
-      const response = await fetch(balanceUrl, { 
+      const response = await fetch(url, { 
         signal: controller.signal,
         cf: { cacheTtl: 60 } // Cache for 1 minute
       });
@@ -62,30 +54,28 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
       return new Response(JSON.stringify({ 
         balance: balance.trim(),
         timestamp: new Date().toISOString()
-      }), {
-        headers: { ...headers, 'content-type': 'application/json' }
+      }), { 
+        headers: { 
+          ...cors, 
+          "content-type": "application/json",
+          "cache-control": "max-age=60" // Cache for 1 minute
+        }
       });
-    } catch (fetchError) {
-      clearTimeout(timeoutId);
-      
-      // Handle specific fetch errors
-      if (fetchError.name === 'AbortError') {
-        return new Response(JSON.stringify({ error: 'Request timed out' }), {
-          status: 504,
-          headers: { ...headers, 'content-type': 'application/json' }
-        });
+    } catch (e: any) {
+      if (e.name === 'AbortError') {
+        throw new Error('API request timed out');
       }
-      
-      throw fetchError;
+      throw e;
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error('Balance API error:', e);
     
     return new Response(JSON.stringify({ 
-      error: `Failed to check balance: ${e.message || 'Unknown error'}` 
-    }), {
-      status: 500,
-      headers: { ...headers, 'content-type': 'application/json' }
+      error: e.message || "Failed to check balance",
+      timestamp: new Date().toISOString()
+    }), { 
+      status: 500, 
+      headers: { ...cors, "content-type": "application/json" }
     });
   }
 };
@@ -94,10 +84,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, request }) => {
  * Handle OPTIONS requests for CORS
  */
 export const onRequestOptions: PagesFunction = async () =>
-  new Response('', {
+  new Response("", { 
     headers: {
-      'access-control-allow-origin': '*',
-      'access-control-allow-headers': 'content-type',
-      'access-control-allow-methods': 'GET, OPTIONS'
+      "access-control-allow-origin": "*",
+      "access-control-allow-headers": "content-type",
+      "access-control-allow-methods": "GET, OPTIONS"
     }
   });
