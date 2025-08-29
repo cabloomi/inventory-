@@ -158,14 +158,16 @@ function variantKey(cond, carrier) {
 function centsToDollars(cents) { return (typeof cents==='number' && isFinite(cents)) ? Math.round(cents)/100 : ''; }
 
 async function ensureVariants(row) {
-  if (row && row.ui && row.ui.variants) return;
-  const q = encodeURIComponent(row.device_display || row.device || row.model_name || '');
-  const storage = encodeURIComponent(row.ui?.storage || row.storage || '');
-  const brand = encodeURIComponent(inferBrand(q));
+  row.ui = row.ui || {};
+  const storage = row.ui.storage || row.storage || '';
+  if (row.ui.variants && row.ui._variantsStorage === storage) return;
+  const qraw = row.device_display || row.device || row.model_name || '';
+  const q = encodeURIComponent(qraw);
+  const brand = encodeURIComponent(inferBrand(qraw));
   try {
-    const res = await fetch(`/api/variants?q=${q}&storage=${storage}&brand=${brand}`);
+    const res = await fetch(`/api/variants?q=${q}&storage=${encodeURIComponent(storage)}&brand=${brand}`);
     const data = await res.json();
-    if (data && data.prices) { row.ui = row.ui || {}; row.ui.variants = data.prices; }
+    if (data && data.prices) { row.ui.variants = data.prices; row.ui._variantsStorage = storage; }
   } catch(e) {}
 }
 
