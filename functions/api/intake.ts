@@ -52,58 +52,75 @@ function lev(a: string, b: string): number {
   return dp[m][n];
 }
 
-/* ---------------- Sickw parsing ---------------- */
+/* ---------------- Sickw field parsing ---------------- */
 function parseModelDescription(desc: string | null) {
   // Example: "IPHONE 16 PRO DESERT 256GB-USA"
   if (!desc) return { deviceName: null, color: null, storageGb: null };
-  const raw = desc.toUpperCase().replace(/[^A-Z0-9\s-]/g, " ").replace(/\s+/g, " ").trim();
-  // strip trailing region suffixes like -USA
-  const cleaned = raw.replace(/-?[A-Z]{2,3}\s*$/, "").trim();
+  const up = desc.toUpperCase().replace(/[^A-Z0-9\s-]/g, " ").replace(/\s+/g, " ").trim();
+  const cleaned = up.replace(/-?[A-Z]{2,3}\s*$/, "").trim(); // strip region like -USA
 
-  // storage
   const storageMatch = cleaned.match(/(\d{2,4})\s*GB\b/);
   const storageGb = storageMatch ? `${storageMatch[1]}GB` : null;
 
-  // known iPhone tokens
-  const model = cleaned
-    .replace(/\bAPPLE\b/g, "")
-    .replace(/\bINC\b/g, "")
-    .replace(/\b\(A\d+\)\b/g, "")
-    .replace(/\bUSA\b/g, "")
-    .trim();
-
-  // colors dictionary (extend as you see them)
-  const COLORS = ["BLACK", "WHITE", "BLUE", "PINK", "PURPLE", "GOLD", "DESERT", "TITANIUM", "NATURAL", "GREEN", "RED", "YELLOW", "SILVER", "MIDNIGHT", "STARLIGHT"];
+  const COLORS = ["BLACK","WHITE","BLUE","PINK","PURPLE","GOLD","DESERT","TITANIUM","NATURAL","GREEN","RED","YELLOW","SILVER","MIDNIGHT","STARLIGHT"];
   let color: string | null = null;
   for (const c of COLORS) {
     const re = new RegExp(`\\b${c}\\b`, "i");
-    if (re.test(model)) { color = c.charAt(0) + c.slice(1).toLowerCase(); break; }
+    if (re.test(cleaned)) { color = c.charAt(0) + c.slice(1).toLowerCase(); break; }
   }
 
-  // build device name from iPhone tokens
-  // e.g., IPHONE 16 PRO MAX ... → "iPhone 16 Pro Max"
-  let deviceTokens = model.split(/\s+/);
-  const iPhoneIdx = deviceTokens.indexOf("IPHONE");
+  // make a nice device name from iPhone tokens
+  const toks = cleaned.split(/\s+/);
+  const iIdx = toks.indexOf("IPHONE");
   let deviceName: string | null = null;
-  if (iPhoneIdx !== -1) {
-    const next = deviceTokens.slice(iPhoneIdx, iPhoneIdx + 5); // IPHONE 16 PRO MAX
-    // stop before color/storage if present
-    const stopWords = new Set(["BLACK","WHITE","BLUE","PINK","PURPLE","GOLD","DESERT","TITANIUM","NATURAL","GREEN","RED","YELLOW","SILVER","MIDNIGHT","STARLIGHT","GB","LTE","5G"]);
-    const tokens: string[] = [];
-    for (const t of next) {
+  if (iIdx !== -1) {
+    const take = toks.slice(iIdx, iIdx + 6); // IPHONE 16 PRO MAX ...
+    const stop = new Set(["BLACK","WHITE","BLUE","PINK","PURPLE","GOLD","DESERT","TITANIUM","NATURAL","GREEN","RED","YELLOW","SILVER","MIDNIGHT","STARLIGHT","GB"]);
+    const keep: string[] = [];
+    for (const t of take) {
       if (/^\d+GB$/.test(t)) break;
-      if (stopWords.has(t)) break;
-      tokens.push(t);
+      if (stop.has(t)) break;
+      keep.push(t);
     }
-    const pretty = tokens.map((t, idx) => idx === 0 ? "iPhone" : t.charAt(0) + t.slice(1).toLowerCase());
-    deviceName = pretty.join(" ").replace(/\bPro\b\s+\bMax\b/i, "Pro Max");
+    deviceName = keep.map((t, j) => j === 0 ? "iPhone" : t.charAt(0) + t.slice(1).toLowerCase()).join(" ")
+                     .replace(/\bPro\b\s+Max\b/i, "Pro Max");
   }
 
   return { deviceName, color, storageGb };
 }
 
+/* --------- Signature parsing (generation/tier) --------- */
+type Tier = "base" | "plus" | "pro" | "promax" | "e" | null;
+
+function parseIphoneSignature(text: string | null) {
+  if (!text) return { gen: null as number|null, tier: null as Tier, storage: null as number|null, color: null as string|null };
+  const s = text.toUpperCase();
+
+  // generation
+  const g = s.match(/\b(1[0-9]|[6-9])\b/); // crude: finds "16" etc.
+  const gen = g ? parseInt(g[1], 10) : null;
+
+  // tier detection (order matters)
+  let tier: Tier = null;
+  if (/\bPRO\s*MAX\b/.test(s)) tier = "promax";
+  else if (/\bPRO\b/.test(s)) tier = "pro";
+  else if (/\bPLUS\b/.test(s)) tier = "plus";
+  else if (/\bIPHONE\s*E\b|\b\se\b/.test(s) || /\b16E\b/.test(s)) tier = "e";
+  else tier = "base";
+
+  // storage
+  const sm = s.match(/(\d{2,4})\s*GB\b/);
+  const storage = sm ? parseInt(sm[1], 10) : null;
+
+  // color (lightweight)
+  const cm = s.match(/\b(BLACK|WHITE|BLUE|PINK|PURPLE|GOLD|DESERT|TITANIUM|NATURAL|GREEN|RED|YELLOW|SILVER|MIDNIGHT|STARLIGHT)\b/);
+  const color = cm ? cm[1].charAt(0) + cm[1].slice(1).toLowerCase() : null;
+
+  return { gen, tier, storage, color };
+}
+
 function parseCarrier(obj: Record<string, any>): string | null {
-  const preferredKeys = ["carrier","network","locked carrier","original carrier","sold by","sold to","activation policy","sim"];
+  const preferred = ["carrier","network","locked carrier","original carrier","sold by","sold to","activation policy","sim"];
   const known = [
     { key: "verizon", label: "Verizon" },
     { key: "t-mobile", label: "T-Mobile" },
@@ -121,13 +138,12 @@ function parseCarrier(obj: Record<string, any>): string | null {
   for (const [k,v] of entries) {
     const kk = String(k).toLowerCase();
     const vv = String(v ?? "").toLowerCase();
-    // SIM-Lock unlocked ⇒ Unlocked
     if (kk.includes("sim") && kk.includes("lock") && vv.includes("unlock")) return "Unlocked";
   }
   for (const [k,v] of entries) {
     const kk = String(k).toLowerCase();
     const vv = String(v ?? "").toLowerCase();
-    if (!preferredKeys.some(p => kk.includes(p))) continue;
+    if (!preferred.some(p => kk.includes(p))) continue;
     for (const c of known) if (vv.includes(c.key)) return c.label;
   }
   for (const [,v] of entries) {
@@ -147,6 +163,7 @@ function hasIcloudOn(obj: Record<string, any>): boolean {
   return false;
 }
 
+/* ---------------- Sickw fetch ---------------- */
 async function sickwFetch(env: Env, imei: string) {
   const url = new URL("https://sickw.com/api.php");
   url.searchParams.set("format", "beta");
@@ -170,8 +187,11 @@ async function sickwFetch(env: Env, imei: string) {
     ? md.deviceName
     : `${manufacturer ? manufacturer+" " : ""}${modelName || modelCode || ""}`.trim();
 
-  const carrier     = parseCarrier(res) || "Unknown";
-  const icloudOn    = hasIcloudOn(res);
+  const carrier  = parseCarrier(res) || "Unknown";
+  const icloudOn = hasIcloudOn(res);
+
+  // signature combines MD + display
+  const sig = parseIphoneSignature([modelDesc, display].filter(Boolean).join(" "));
 
   return {
     imei: res.IMEI || j.imei || imei,
@@ -180,85 +200,135 @@ async function sickwFetch(env: Env, imei: string) {
     model_name: modelName,
     device_display: display,
     color: md.color,
-    storage: md.storageGb, // string like "256GB"
+    storage: md.storageGb, // "256GB"
     carrier,
-    icloud_lock_on: icloudOn
+    icloud_lock_on: icloudOn,
+    sig, // {gen, tier, storage, color}
   };
 }
 
-/* ---------------- Price matching with sheet preference ---------------- */
-function sheetsForAppleIphone(isUnlocked: boolean): string[] {
-  return isUnlocked ? ["iphone new unlocked"] : ["iphone"];
-}
-function isWatchOrAirpodsSheet(sheetName: string | undefined): boolean {
+/* --------- Price matching with strict model/tier --------- */
+function isWatchOrAirpodsSheet(sheetName?: string) {
   if (!sheetName) return false;
   const s = sheetName.toLowerCase();
   return s.includes("watch") || s.includes("airpod") || s.includes("airpods");
 }
+function sheetPreference(isUnlocked: boolean) {
+  return isUnlocked
+    ? [/iphone.*unlock/i]          // unlocked → only unlocked sheets
+    : [/^iphone(?!.*unlock)/i];    // locked → iphone sheets without "unlock"
+}
 
-function bestPriceMatchSmart(
-  deviceDisplay: string,
-  storage: string | null,
-  carrier: string | null,
-  isUnlocked: boolean,
-  priceRows: Record<string,string>[]
-) {
-  const needle = norm(deviceDisplay);
-  const preferredSheets = sheetsForAppleIphone(isUnlocked).map(s => s.toLowerCase());
+function parseRowSignature(rowDevice: string) {
+  // Parse the same signature from a prices.csv device string
+  const sig = parseIphoneSignature(rowDevice);
+  return sig;
+}
 
-  // filter rows: first pass only preferred sheets; second pass: any iPhone sheet; never watches/airpods
-  const primary = priceRows.filter(r => preferredSheets.includes((r.sheet || "").toLowerCase()));
-  const secondary = priceRows.filter(r => !isWatchOrAirpodsSheet(r.sheet));
+function scoreMatchStrict(target: ReturnType<typeof parseIphoneSignature>, cand: ReturnType<typeof parseIphoneSignature>) {
+  // hard requirements: same generation & tier
+  if (target.gen && cand.gen && target.gen !== cand.gen) return -Infinity;
+  if (target.tier && cand.tier && target.tier !== cand.tier) return -Infinity;
 
-  const searchSets = [primary, secondary];
-  for (const set of searchSets) {
-    let best: Record<string,string> | null = null;
-    let bestScore = -Infinity;
+  // soft boosts
+  let score = 0.5;
+  if (target.storage && cand.storage && target.storage === cand.storage) score += 0.35;
+  return score;
+}
+function scoreMatchRelaxed(target: ReturnType<typeof parseIphoneSignature>, cand: ReturnType<typeof parseIphoneSignature>, nameScore: number) {
+  // relaxed: require same generation; allow tier mismatch but penalize
+  if (target.gen && cand.gen && target.gen !== cand.gen) return -Infinity;
+  let score = 0.3 * nameScore;
+  if (target.tier && cand.tier && target.tier === cand.tier) score += 0.2;
+  if (target.storage && cand.storage && target.storage === cand.storage) score += 0.2;
+  return score;
+}
 
-    for (const row of set) {
-      const dev = (row["device"] || "");
-      if (!dev) continue;
-      const hay = norm(dev);
-      if (!hay || !needle) continue;
+function bestPriceMatchSmart(devName: string, isUnlocked: boolean, targetSig: ReturnType<typeof parseIphoneSignature>, priceRows: Record<string,string>[]) {
+  // Filter sheets by lock state and exclude watch/airpods
+  const preferred = sheetPreference(isUnlocked);
+  const eligible = priceRows.filter(r => {
+    const sheet = (r.sheet || "");
+    if (isWatchOrAirpodsSheet(sheet)) return false;
+    return preferred.some(re => re.test(sheet));
+  });
 
-      // base string similarity
-      let score = 0;
-      if (hay.includes(needle) || needle.includes(hay)) score = 0.8;
-      else {
-        const len = Math.max(needle.length, hay.length);
-        const d = lev(needle, hay);
-        score = 0.8 * (1 - Math.min(1, d / Math.max(1, len)));
-      }
+  const candidates = eligible.length ? eligible : priceRows.filter(r => !isWatchOrAirpodsSheet(r.sheet));
 
-      // storage boost
-      if (storage) {
-        const sNorm = storage.replace(/\s+/g, "").toLowerCase(); // "256gb"
-        if (hay.includes(sNorm) || dev.toLowerCase().includes(sNorm)) score += 0.15;
-      }
+  const targetNorm = norm(devName);
 
-      // carrier boost
-      if (carrier) {
-        const c = carrier.toLowerCase();
-        if (c === "unlocked" && (hay.includes("unlock") || hay.includes("unlocked"))) score += 0.05;
-        if (c !== "unlocked" && hay.includes(c)) score += 0.05;
-      }
+  // Pass 1: strict (same gen + same tier)
+  let best: Record<string,string> | null = null;
+  let bestScore = -Infinity;
 
-      if (score > bestScore) { bestScore = score; best = row; }
+  for (const row of candidates) {
+    const dev = (row["device"] || "");
+    if (!dev) continue;
+    const candSig = parseRowSignature(dev);
+    const s = scoreMatchStrict(targetSig, candSig);
+    if (s === -Infinity) continue;
+
+    // minor name similarity term
+    const hay = norm(dev);
+    let nameScore = 0.0;
+    if (hay.includes(targetNorm) || targetNorm.includes(hay)) nameScore = 1.0;
+    else {
+      const len = Math.max(hay.length, targetNorm.length);
+      const d = lev(hay, targetNorm);
+      nameScore = 1 - Math.min(1, d / Math.max(1, len));
     }
+    const total = s + 0.15 * nameScore;
 
-    if (best) {
-      const purchase_cents = parseInt(best["purchase_price_cents"] || "0", 10) || 0;
-      const base_cents     = parseInt(best["base_price_cents"] || "0", 10) || 0;
-      return {
-        match: best,
-        confidence: Math.round(bestScore * 1000) / 1000,
-        purchase_price_cents: purchase_cents,
-        purchase_price_dollars: Math.round(purchase_cents / 100),
-        base_price_cents: base_cents
-      };
-    }
+    if (total > bestScore) { bestScore = total; best = row; }
   }
 
+  if (best) {
+    const purchase_cents = parseInt(best["purchase_price_cents"] || "0", 10) || 0;
+    const base_cents     = parseInt(best["base_price_cents"] || "0", 10) || 0;
+    return {
+      match: best,
+      confidence: Math.round(bestScore * 1000) / 1000,
+      purchase_price_cents: purchase_cents,
+      purchase_price_dollars: Math.round(purchase_cents / 100),
+      base_price_cents: base_cents
+    };
+  }
+
+  // Pass 2: relaxed (same gen, tier optional) — still never watch/airpods
+  best = null; bestScore = -Infinity;
+  for (const row of candidates) {
+    const dev = (row["device"] || "");
+    if (!dev) continue;
+    const candSig = parseRowSignature(dev);
+
+    const hay = norm(dev);
+    let nameScore = 0.0;
+    if (hay.includes(targetNorm) || targetNorm.includes(hay)) nameScore = 1.0;
+    else {
+      const len = Math.max(hay.length, targetNorm.length);
+      const d = lev(hay, targetNorm);
+      nameScore = 1 - Math.min(1, d / Math.max(1, len));
+    }
+
+    const total = scoreMatchRelaxed(targetSig, candSig, nameScore);
+    if (total === -Infinity) continue;
+
+    if (total > bestScore) { bestScore = total; best = row; }
+  }
+
+  if (best) {
+    const purchase_cents = parseInt(best["purchase_price_cents"] || "0", 10) || 0;
+    const base_cents     = parseInt(best["base_price_cents"] || "0", 10) || 0;
+    return {
+      match: best,
+      confidence: Math.round(bestScore * 1000) / 1000,
+      purchase_price_cents: purchase_cents,
+      purchase_price_dollars: Math.round(purchase_cents / 100),
+      base_price_cents: base_cents
+    };
+  }
+
+  // Nothing plausible
   return { match: null, confidence: 0, purchase_price_cents: 0, purchase_price_dollars: 0, base_price_cents: 0 };
 }
 
@@ -287,11 +357,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     for (const imei of capped) {
       try {
         const dev = await sickwFetch(env, imei);
+        const isUnlocked = (dev.carrier || "").toLowerCase() === "unlocked";
         const pricing = bestPriceMatchSmart(
           dev.device_display,
-          dev.storage,
-          dev.carrier,
-          dev.carrier.toLowerCase() === "unlocked",
+          isUnlocked,
+          dev.sig,
           priceRows
         );
         items.push({
@@ -307,9 +377,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
           icloud_lock_on: dev.icloud_lock_on,
           match_device: pricing.match?.device || null,
           match_sheet: pricing.match?.sheet || null,
-          // base hidden on UI; kept here for debugging if needed
-          base_price_cents: pricing.base_price_cents || null,
-          // UI uses dollars and pre-fills "Price Paid ($)"
+          base_price_cents: pricing.base_price_cents || null, // hidden on UI
           suggested_price_cents: pricing.purchase_price_cents || null,
           suggested_price_dollars: pricing.purchase_price_dollars || null,
           confidence: pricing.confidence || 0
@@ -317,7 +385,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       } catch (e: any) {
         items.push({ ok: false, imei, error: String(e?.message || e) });
       }
-      await new Promise(r => setTimeout(r, 180));
+      await new Promise(r => setTimeout(r, 160));
     }
 
     return new Response(JSON.stringify({
