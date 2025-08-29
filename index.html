@@ -29,6 +29,23 @@
   .loader.show { display:flex; }
   .spinner { width:42px; height:42px; border:5px solid #1b2a3a; border-top-color:#00e29b; border-radius:50%; animation: spin 0.9s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* typeahead */
+  .typeahead { position: relative; flex: 2 1 260px; }
+  .suggestions {
+    position: absolute; top: 100%; left: 0; right: 0;
+    background: #0d1218; border: 1px solid #213244; border-radius: 10px;
+    margin-top: 6px; max-height: 320px; overflow-y: auto; z-index: 50;
+    box-shadow: 0 10px 25px rgba(0,0,0,.35);
+  }
+  .sug-item {
+    padding: 10px; cursor: pointer; display:flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .sug-item:hover, .sug-item.active { background: #13202d; }
+  .sug-left { display:flex; flex-direction: column; }
+  .sug-device { font-weight: 600; color:#dff3ff; }
+  .sug-sheet { font-size: 12px; color:#9ac7ff; opacity:.8; }
+  .sug-price { font-weight: 700; }
 </style>
 </head>
 <body>
@@ -52,7 +69,10 @@
 
   <h3 style="margin-top:20px;">Add Manual Item</h3>
   <div class="row">
-    <input type="text" id="m_device" placeholder="Device (e.g., AirPods Pro 2)" style="flex: 2 1 260px;" />
+    <div class="typeahead">
+      <input type="text" id="m_device" placeholder="Start typing (e.g., AirPods Pro 2, iPhone 13 Mini 128GB)" autocomplete="off" />
+      <div id="m_suggest" class="suggestions" style="display:none;"></div>
+    </div>
     <input type="text" id="m_color" placeholder="Color" style="flex: 1 1 140px;" />
     <input type="text" id="m_storage" placeholder="Storage (e.g., 256GB)" style="flex: 1 1 140px;" />
     <select id="m_carrier">
@@ -84,14 +104,126 @@ async function fetchBalance() {
     let text = 'API Balance: ';
     text += val && !isNaN(Number(val)) ? '<span class="tag">$' + val + '</span>' : '<span class="tag red">' + (val || '—') + '</span>';
     document.getElementById('balance').innerHTML = text;
-  } catch (e) {
-    // silent
-  }
+  } catch (e) {}
 }
 fetchBalance();
 
 var state = { rows: [], manual: [] };
 
+/* ---------- Manual item typeahead ---------- */
+(function setupTypeahead() {
+  var input = document.getElementById('m_device');
+  var box   = document.getElementById('m_suggest');
+  var activeIdx = -1;
+  var lastQ = ""; var inflight = 0;
+
+  function hide() { box.style.display = 'none'; box.innerHTML = ''; activeIdx = -1; }
+  function show() { box.style.display = 'block'; }
+
+  function parseColorAndStorage(deviceText) {
+    var COLORS = ["Black","White","Blue","Pink","Purple","Gold","Desert","Titanium","Natural","Green","Red","Yellow","Silver","Midnight","Starlight"];
+    var color = null;
+    var upper = deviceText.toUpperCase();
+    for (var i=0;i<COLORS.length;i++) {
+      var c = COLORS[i];
+      var re = new RegExp("\\b" + c.toUpperCase() + "\\b");
+      if (re.test(upper)) { color = c; break; }
+    }
+    var storage = null;
+    var m = upper.match(/(\d{2,4})\s*GB\b/);
+    if (m) storage = m[1] + "GB";
+    return { color: color, storage: storage };
+  }
+
+  function selectItem(obj) {
+    input.value = obj.device;
+    var parsed = parseColorAndStorage(obj.device);
+    if (parsed.color && !document.getElementById('m_color').value) document.getElementById('m_color').value = parsed.color;
+    if (parsed.storage && !document.getElementById('m_storage').value) document.getElementById('m_storage').value = parsed.storage;
+    document.getElementById('m_price').value = obj.price_dollars || 0;
+    hide();
+  }
+
+  function renderList(arr) {
+    if (!arr.length) { hide(); return; }
+    var html = arr.map(function(r, i) {
+      return '<div class="sug-item" data-idx="'+i+'">'
+        + '<div class="sug-left">'
+        +   '<div class="sug-device">'+ r.device +'</div>'
+        +   '<div class="sug-sheet">'+ (r.sheet || '') +'</div>'
+        + '</div>'
+        + '<div class="sug-price">$'+ (r.price_dollars || 0) +'</div>'
+        + '</div>';
+    }).join('');
+    box.innerHTML = html;
+    Array.prototype.forEach.call(box.querySelectorAll('.sug-item'), function(el) {
+      el.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        var idx = parseInt(el.getAttribute('data-idx'), 10);
+        selectItem(arr[idx]);
+      });
+    });
+    show();
+  }
+
+  function debounce(fn, ms) {
+    var t; return function(){ clearTimeout(t); var args=arguments; t=setTimeout(function(){ fn.apply(null,args); }, ms); };
+  }
+
+  var doFetch = debounce(async function(q) {
+    if (!q || q.length < 2) { hide(); return; }
+    if (q === lastQ) return;
+    lastQ = q;
+    var myTicket = ++inflight;
+    try {
+      const res = await fetch('/api/search?q=' + encodeURIComponent(q) + '&limit=20');
+      const data = await res.json();
+      if (inflight !== myTicket) return; // out-of-order guard
+      renderList((data && data.results) ? data.results : []);
+    } catch (e) {
+      hide();
+    }
+  }, 180);
+
+  input.addEventListener('input', function() {
+    var q = input.value.trim();
+    doFetch(q);
+  });
+
+  input.addEventListener('keydown', function(e) {
+    var items = box.querySelectorAll('.sug-item');
+    if (box.style.display === 'none' || !items.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeIdx = (activeIdx + 1) % items.length;
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIdx = (activeIdx - 1 + items.length) % items.length;
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeIdx >= 0 && activeIdx < items.length) {
+        var idx = parseInt(items[activeIdx].getAttribute('data-idx'), 10);
+        var results = Array.from(items).map(function(it){
+          return {
+            device: it.querySelector('.sug-device').textContent,
+            sheet:  it.querySelector('.sug-sheet').textContent,
+            price_dollars: Number(it.querySelector('.sug-price').textContent.replace(/^\D+/, '')) || 0
+          };
+        });
+        selectItem(results[activeIdx]);
+      }
+    } else if (e.key === 'Escape') {
+      hide();
+    }
+    Array.prototype.forEach.call(items, function(el, i){
+      if (i === activeIdx) el.classList.add('active'); else el.classList.remove('active');
+    });
+  });
+
+  input.addEventListener('blur', function() { setTimeout(hide, 120); });
+})();
+
+/* ---------- Existing rendering / download / totals ---------- */
 function render() {
   var rows = state.rows;
   var mrows = state.manual;
@@ -110,7 +242,6 @@ function render() {
     + '<th>Notes</th>'
     + '</tr></thead><tbody>');
 
-  // API rows (qty = 1)
   rows.forEach(function(r, idx) {
     if (!r.ok) {
       table.push('<tr><td colspan="9" class="err">IMEI ' + r.imei + ' → ' + (r.error || 'error') + '</td></tr>');
@@ -147,7 +278,6 @@ function render() {
       + '</tr>');
   });
 
-  // Manual rows
   mrows.forEach(function(r, idx) {
     table.push('<tr>'
       + '<td><em class="muted">manual</em></td>'
@@ -170,16 +300,12 @@ function render() {
 
   el.innerHTML = table.join('');
 
-  // Change listeners for totals
   Array.prototype.forEach.call(document.querySelectorAll('.paid,.mpaid,.mqty'), function(inp) {
     inp.addEventListener('input', computeTotals);
   });
 
-  // Download CSV
   document.getElementById('download').onclick = function() {
     var payload = [];
-
-    // API rows (qty=1)
     state.rows.forEach(function(r, idx) {
       if (!r.ok) return;
       var paidEl = document.querySelector('.paid[data-kind="api"][data-idx="' + idx + '"]');
@@ -209,11 +335,9 @@ function render() {
         notes: (note || '').trim()
       });
     });
-
-    // Manual rows
     state.manual.forEach(function(r, idx) {
       var paidEl = document.querySelector('.mpaid[data-idx="' + idx + '"]');
-      var qtyEl = document.querySelector('.mqty[data-idx="' + idx + '"]');
+      var qtyEl  = document.querySelector('.mqty[data-idx="' + idx + '"]');
       var noteEl = document.querySelector('.mnote[data-idx="' + idx + '"]');
       var dollars = Number((paidEl && paidEl.value) ? paidEl.value : '');
       var qty = Number((qtyEl && qtyEl.value) ? qtyEl.value : '1');
@@ -245,7 +369,6 @@ function render() {
     payload.forEach(function(o) {
       var row = header.map(function(k) {
         var v = (o[k] != null) ? String(o[k]) : '';
-        // basic CSV escaping
         return JSON.stringify(v).replace(/^\uFEFF/, '');
       }).join(',');
       lines.push(row);
@@ -265,21 +388,17 @@ function render() {
 
 function computeTotals() {
   var totalDollars = 0;
-
-  // API dollar inputs
   Array.prototype.forEach.call(document.querySelectorAll('.paid'), function(inp) {
     var v = Number(inp.value || '');
     if (isFinite(v)) totalDollars += v;
   });
-  // Manual (unit * qty)
   state.manual.forEach(function(r, idx) {
     var paidEl = document.querySelector('.mpaid[data-idx="' + idx + '"]');
-    var qtyEl = document.querySelector('.mqty[data-idx="' + idx + '"]');
+    var qtyEl  = document.querySelector('.mqty[data-idx="' + idx + '"]');
     var dollars = Number((paidEl && paidEl.value) ? paidEl.value : '');
     var qty = Number((qtyEl && qtyEl.value) ? qtyEl.value : '1');
     if (isFinite(dollars) && isFinite(qty)) totalDollars += dollars * Math.max(1, qty);
   });
-
   document.getElementById('totals').innerText = 'Total: $' + Math.round(totalDollars);
 }
 
@@ -291,17 +410,19 @@ document.getElementById('reset').onclick = function() {
   document.getElementById('totals').innerText = '';
 };
 
-// Add manual item
 document.getElementById('addManual').onclick = function(e) {
   e.preventDefault();
-  var device = document.getElementById('m_device').value.trim();
-  var color = document.getElementById('m_color').value.trim();
+  var device  = document.getElementById('m_device').value.trim();
+  var color   = document.getElementById('m_color').value.trim();
   var storage = document.getElementById('m_storage').value.trim();
   var carrier = document.getElementById('m_carrier').value || 'Unknown';
-  var qty = Number(document.getElementById('m_qty').value || '1');
+  var qty     = Number(document.getElementById('m_qty').value || '1');
   var unitPrice = Number(document.getElementById('m_price').value || '');
   if (!device) return;
-  state.manual.push({ device: device, color: color, storage: storage, carrier: carrier, qty: Math.max(1, qty), unitPrice: isFinite(unitPrice) ? unitPrice : 0, notes: '' });
+  state.manual.push({
+    device: device, color: color, storage: storage, carrier: carrier,
+    qty: Math.max(1, qty), unitPrice: isFinite(unitPrice) ? unitPrice : 0, notes: ''
+  });
   render();
 };
 
@@ -311,7 +432,6 @@ document.getElementById('form').onsubmit = async function(e) {
   var imeis = raw.split(/[\s,;\n\r]+/).map(function(s){ return s.trim(); }).filter(Boolean).slice(0,200);
   if (!imeis.length) return;
 
-  // loading state
   var loader = document.getElementById('loader');
   var btn = document.getElementById('lookupBtn');
   loader.classList.add('show'); btn.disabled = true; btn.innerText = 'Looking up…';
@@ -324,7 +444,6 @@ document.getElementById('form').onsubmit = async function(e) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Lookup failed');
-
     state.rows = data.items || [];
     render();
   } catch (err) {
