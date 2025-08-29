@@ -43,6 +43,8 @@
   .sug-device { font-weight: 600; color:#dff3ff; }
   .sug-sheet { font-size: 12px; color:#9ac7ff; opacity:.8; }
   .sug-price { font-weight: 700; }
+  /* identifier validation highlight */
+  .bad { border-color:#b44 !important; box-shadow: 0 0 0 2px rgba(255,64,64,.18); }
 </style>
 </head>
 <body>
@@ -66,12 +68,28 @@
 
   <h3 style="margin-top:20px;">Add Manual Item</h3>
   <div class="row">
-    <div class="typeahead">
+    <div class="typeahead" style="flex: 3 1 320px;">
       <input type="text" id="m_device" placeholder="Start typing (e.g., AirPods Pro 2, iPhone 13 Mini 128GB)" autocomplete="off" />
       <div id="m_suggest" class="suggestions" style="display:none;"></div>
     </div>
-    <input type="text" id="m_color" placeholder="Color" style="flex: 1 1 140px;" />
-    <input type="text" id="m_storage" placeholder="Storage (e.g., 256GB)" style="flex: 1 1 140px;" />
+
+    <!-- Color dynamic search -->
+    <div class="typeahead" style="flex: 2 1 220px;">
+      <input type="text" id="m_color" placeholder="Color (type to search)" autocomplete="off" />
+      <div id="m_color_suggest" class="suggestions" style="display:none;"></div>
+    </div>
+
+    <!-- Storage dropdown (narrow) -->
+    <select id="m_storage" style="width: 120px;">
+      <option value="">Storage</option>
+      <option>64GB</option>
+      <option>128GB</option>
+      <option>256GB</option>
+      <option>512GB</option>
+      <option>1TB</option>
+      <option>2TB</option>
+    </select>
+
     <select id="m_carrier">
       <option value="Unknown">Carrier</option>
       <option>Unlocked</option><option>Verizon</option><option>T-Mobile</option><option>AT&T</option>
@@ -101,8 +119,29 @@ fetchBalance();
 
 var state = { rows: [], manual: [] };
 
-/* ---------- Manual typeahead (from /api/search) ---------- */
-(function setupTypeahead() {
+/* ---------- Color list (Apple + Samsung, 2022+) ---------- */
+const COLOR_LIST = Array.from(new Set([
+  // Apple 2022+: iPhone 14/14 Plus
+  "Midnight","Starlight","Blue","Purple","Yellow","(PRODUCT)RED","Red",
+  // iPhone 14 Pro/Max
+  "Deep Purple","Space Black","Silver","Gold",
+  // iPhone 15/15 Plus
+  "Black","Light Blue","Light Green","Light Yellow","Light Pink","Pink","Green","Yellow",
+  // iPhone 15 Pro/Max
+  "Natural Titanium","Blue Titanium","White Titanium","Black Titanium","Titanium",
+  // iPhone 16/Pro (as used in your data)
+  "Desert","Desert Titanium","Natural",
+  // Samsung S22 family
+  "Phantom Black","Phantom White","Green","Pink Gold","Burgundy","Graphite","Sky Blue","Red",
+  // Samsung S23 family
+  "Cream","Lavender","Lime",
+  // Samsung S24 family
+  "Onyx Black","Marble Gray","Cobalt Violet","Amber Yellow",
+  "Titanium Black","Titanium Gray","Titanium Violet","Titanium Yellow","Titanium Blue","Titanium Green","Titanium Orange"
+])).sort((a,b)=>a.localeCompare(b));
+
+/* ---------- Device typeahead (from /api/search) ---------- */
+(function setupDeviceTypeahead() {
   var input = document.getElementById('m_device');
   var box   = document.getElementById('m_suggest');
   var activeIdx = -1;
@@ -111,18 +150,31 @@ var state = { rows: [], manual: [] };
   function hide() { box.style.display = 'none'; box.innerHTML = ''; activeIdx = -1; }
   function show() { box.style.display = 'block'; }
 
-  function parseColorAndStorage(deviceText) {
-    var COLORS = ["Black","White","Blue","Pink","Purple","Gold","Desert","Titanium","Natural","Green","Red","Yellow","Silver","Midnight","Starlight"];
-    var color = null;
-    var upper = deviceText.toUpperCase();
-    for (var i=0;i<COLORS.length;i++) {
-      var c = COLORS[i];
-      var re = new RegExp("\\b" + c.toUpperCase() + "\\b");
-      if (re.test(upper)) { color = c; break; }
+  function setStorageFromText(storageText) {
+    if (!storageText) return;
+    var val = storageText.toUpperCase().replace(/\s+/g,'').replace(/B$/, 'B'); // e.g., 256GB
+    var select = document.getElementById('m_storage');
+    for (var i=0;i<select.options.length;i++) {
+      if (select.options[i].text.toUpperCase() === val) { select.selectedIndex = i; return; }
     }
+  }
+
+  function parseColorAndStorage(deviceText) {
+    var upper = (deviceText || '').toUpperCase();
+    // Storage
     var storage = null;
-    var m = upper.match(/(\d{2,4})\s*GB\b/);
-    if (m) storage = m[1] + "GB";
+    var m = upper.match(/(64|128|256|512|1024|2048)\s*GB\b|\b(1|2)\s*TB\b/);
+    if (m) {
+      if (m[1]) storage = m[1] + "GB";
+      else if (m[2]) storage = m[2] + "TB";
+    }
+    // Color: pick first match from COLOR_LIST
+    var color = null;
+    for (var i=0;i<COLOR_LIST.length;i++) {
+      var c = COLOR_LIST[i];
+      var re = new RegExp('(^|\\s)'+c.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')+'(\\s|$)', 'i');
+      if (re.test(deviceText)) { color = c; break; }
+    }
     return { color: color, storage: storage };
   }
 
@@ -130,7 +182,7 @@ var state = { rows: [], manual: [] };
     input.value = obj.device;
     var parsed = parseColorAndStorage(obj.device);
     if (parsed.color && !document.getElementById('m_color').value) document.getElementById('m_color').value = parsed.color;
-    if (parsed.storage && !document.getElementById('m_storage').value) document.getElementById('m_storage').value = parsed.storage;
+    if (parsed.storage) setStorageFromText(parsed.storage);
     document.getElementById('m_price').value = obj.price_dollars || 0;
     hide();
   }
@@ -188,6 +240,68 @@ var state = { rows: [], manual: [] };
       }
     } else if (e.key === 'Escape') { hide(); }
     Array.prototype.forEach.call(items, function(el, i){ if (i === activeIdx) el.classList.add('active'); else el.classList.remove('active'); });
+  });
+
+  input.addEventListener('blur', function() { setTimeout(hide, 120); });
+})();
+
+/* ---------- Color typeahead (local list) ---------- */
+(function setupColorTypeahead() {
+  var input = document.getElementById('m_color');
+  var box   = document.getElementById('m_color_suggest');
+  var activeIdx = -1;
+  function hide() { box.style.display = 'none'; box.innerHTML = ''; activeIdx = -1; }
+  function show() { box.style.display = 'block'; }
+
+  function filterColors(q) {
+    if (!q) return COLOR_LIST.slice(0, 20);
+    q = q.toLowerCase();
+    return COLOR_LIST
+      .map(c => ({ c, score: (c.toLowerCase().startsWith(q) ? 2 : (c.toLowerCase().includes(q) ? 1 : 0)) }))
+      .filter(x => x.score > 0)
+      .sort((a,b) => b.score - a.score || a.c.localeCompare(b.c))
+      .slice(0, 20)
+      .map(x => x.c);
+  }
+
+  function renderList(arr) {
+    if (!arr.length) { hide(); return; }
+    var html = arr.map((name, i) => '<div class="sug-item" data-idx="'+i+'"><div>'+name+'</div></div>').join('');
+    box.innerHTML = html;
+    Array.prototype.forEach.call(box.querySelectorAll('.sug-item'), function(el) {
+      el.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        var idx = parseInt(el.getAttribute('data-idx'), 10);
+        input.value = arr[idx];
+        hide();
+      });
+    });
+    show();
+  }
+
+  input.addEventListener('input', function() {
+    var q = input.value.trim();
+    renderList(filterColors(q));
+  });
+
+  input.addEventListener('keydown', function(e) {
+    var items = box.querySelectorAll('.sug-item');
+    if (box.style.display === 'none' || !items.length) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = (activeIdx + 1) % items.length; }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = (activeIdx - 1 + items.length) % items.length; }
+    else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeIdx >= 0 && activeIdx < items.length) {
+        var idx = parseInt(items[activeIdx].getAttribute('data-idx'), 10);
+        input.value = items[idx].innerText.trim();
+        hide();
+      }
+    } else if (e.key === 'Escape') { hide(); }
+    Array.prototype.forEach.call(items, function(el, i){ if (i === activeIdx) el.classList.add('active'); else el.classList.remove('active'); });
+  });
+
+  input.addEventListener('focus', function() {
+    if (!input.value.trim()) renderList(filterColors(''));
   });
 
   input.addEventListener('blur', function() { setTimeout(hide, 120); });
@@ -257,10 +371,43 @@ function render() {
   table.push('</tbody></table>'
     + '<div class="row" style="margin-top:12px;">'
     + '  <button class="btn" id="download">Download CSV</button>'
-    + '  <span class="muted">CSV now has a single <b>identifier</b> column (IMEI or Serial).</span>'
+    + '  <span class="muted">CSV uses a single <b>identifier</b> column (IMEI or Serial).</span>'
     + '</div>');
 
   el.innerHTML = table.join('');
+
+  /* ------- Identifier validation additions ------- */
+  function refreshIdentifierValidation() {
+    const inputs = Array.from(document.querySelectorAll('.mident'));
+    const seen = new Map();
+    inputs.forEach(inp => {
+      const v = (inp.value || '').trim();
+      const key = v.toUpperCase();
+      inp.classList.remove('bad');
+      inp.removeAttribute('title');
+
+      if (!v) return;
+
+      // Duplicate highlight
+      if (seen.has(key)) {
+        inp.classList.add('bad');
+        const other = seen.get(key);
+        if (other) other.classList.add('bad');
+      } else {
+        seen.set(key, inp);
+      }
+
+      // Soft IMEI check: if all digits and not 15 chars
+      if (/^\d+$/.test(v) && v.length !== 15) {
+        inp.classList.add('bad');
+        inp.title = 'IMEI is usually 15 digits (serials can be any length).';
+      }
+    });
+  }
+  refreshIdentifierValidation();
+  document.querySelectorAll('.mident').forEach(inp => {
+    inp.addEventListener('input', refreshIdentifierValidation);
+  });
 
   /* totals update */
   Array.prototype.forEach.call(document.querySelectorAll('.paid,.mpaid'), function(inp) {
