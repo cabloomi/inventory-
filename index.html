@@ -36,7 +36,7 @@
   <div id="loader" class="loader"><div><div class="spinner" style="margin:auto"></div><div class="muted" style="margin-top:10px;text-align:center">Looking up IMEIs…</div></div></div>
 
   <h1>Inventory Intake (Pages Functions)</h1>
-  <p class="muted">Add a trailing <b>“u”</b> after an IMEI to mark it as <b>Used</b> (we won’t send the “u” to Sickw). Unlocked iPhones use “iPhone New Unlocked” pages; Used devices use brand-specific <b>USED</b> pages.</p>
+  <p class="muted">Add a trailing <b>“u”</b> after an IMEI to mark it as <b>Used</b> (we won’t send the “u” to Sickw). Unlocked iPhones use “iPhone New Unlocked”; Used devices use brand-specific <b>USED</b> pages.</p>
 
   <div id="balance" class="muted"></div>
 
@@ -82,105 +82,111 @@ async function fetchBalance() {
     const j = await r.json();
     const val = (j.balance || '').toString().trim();
     let text = 'API Balance: ';
-    text += val && !isNaN(Number(val)) ? `<span class="tag">$${val}</span>` : `<span class="tag red">${val || '—'}</span>`;
+    text += val && !isNaN(Number(val)) ? '<span class="tag">$' + val + '</span>' : '<span class="tag red">' + (val || '—') + '</span>';
     document.getElementById('balance').innerHTML = text;
-  } catch {}
+  } catch (e) {
+    // silent
+  }
 }
 fetchBalance();
 
-const state = { rows: [], manual: [] };
+var state = { rows: [], manual: [] };
 
 function render() {
-  const rows = state.rows;
-  const mrows = state.manual;
+  var rows = state.rows;
+  var mrows = state.manual;
 
-  const el = document.getElementById('out');
-  const table = [];
-  table.push(`<table>
-    <thead>
-      <tr>
-        <th>IMEI</th>
-        <th>Device</th>
-        <th>Color</th>
-        <th>Storage</th>
-        <th>Carrier</th>
-        <th>Matched (Sheet)</th>
-        <th class="right">Price Paid ($)</th>
-        <th>Qty</th>
-        <th>Notes</th>
-      </tr>
-    </thead><tbody>`);
+  var el = document.getElementById('out');
+  var table = [];
+  table.push('<table><thead><tr>'
+    + '<th>IMEI</th>'
+    + '<th>Device</th>'
+    + '<th>Color</th>'
+    + '<th>Storage</th>'
+    + '<th>Carrier</th>'
+    + '<th>Matched (Sheet)</th>'
+    + '<th class="right">Price Paid ($)</th>'
+    + '<th>Qty</th>'
+    + '<th>Notes</th>'
+    + '</tr></thead><tbody>');
 
   // API rows (qty = 1)
-  rows.forEach((r, idx) => {
+  rows.forEach(function(r, idx) {
     if (!r.ok) {
-      table.push(`<tr><td colspan="9" class="err">IMEI ${r.imei} → ${r.error || 'error'}</td></tr>`);
+      table.push('<tr><td colspan="9" class="err">IMEI ' + r.imei + ' → ' + (r.error || 'error') + '</td></tr>');
       return;
     }
-    const warnIcloud = r.icloud_lock_on ? `<span class="tag red">iCloud Lock: ON</span>` : '';
-    const hint = r.condition_hint === 'assume_used'
-      ? `<span class="tag red">Assume Used</span>`
-      : (r.condition_hint === 'check_for_use' ? `<span class="tag yellow">Check for signs of use</span>` : '');
-    const usedTag = r.used ? `<span class="tag green">Used</span>` : '';
+    var warnIcloud = r.icloud_lock_on ? '<span class="tag red">iCloud Lock: ON</span>' : '';
+    var hint = r.condition_hint === 'assume_used'
+      ? '<span class="tag red">Assume Used</span>'
+      : (r.condition_hint === 'check_for_use' ? '<span class="tag yellow">Check for signs of use</span>' : '');
+    var usedTag = r.used ? '<span class="tag green">Used</span>' : '';
 
-    const purchInfo = r.estimated_purchase_date
-      ? `<div class="muted">Est. Purchase: ${r.estimated_purchase_date}${typeof r.estimated_purchase_age_days==='number' ? ` (${r.estimated_purchase_age_days}d ago)` : ''}</div>`
+    var purchInfo = r.estimated_purchase_date
+      ? '<div class="muted">Est. Purchase: ' + r.estimated_purchase_date + (typeof r.estimated_purchase_age_days === 'number' ? ' (' + r.estimated_purchase_age_days + 'd ago)' : '') + '</div>'
       : '';
 
-    const display = (r.device_display || ((r.manufacturer||'') + ' ' + (r.model_name||''))).trim();
-    const paidDollars = typeof r.suggested_price_dollars === 'number' ? r.suggested_price_dollars : '';
+    var display = (r.device_display || ((r.manufacturer || '') + ' ' + (r.model_name || ''))).trim();
+    var paidDollars = (typeof r.suggested_price_dollars === 'number') ? r.suggested_price_dollars : '';
 
-    table.push(`<tr>
-      <td><code>${r.imei}</code></td>
-      <td>${display} ${warnIcloud ? `<div>${warnIcloud}</div>` : ''} ${hint ? `<div>${hint}</div>` : ''} ${usedTag ? `<div>${usedTag}</div>` : ''} ${purchInfo}</td>
-      <td>${r.color || ''}</td>
-      <td>${r.storage || ''}</td>
-      <td><span class="tag">${r.carrier || 'Unknown'}</span></td>
-      <td><div>${r.match_device || '—'}</div><div class="muted">${r.match_sheet || ''}</div></td>
-      <td class="right"><input type="number" class="paid" data-kind="api" data-idx="${idx}" value="${paidDollars}" step="1" min="0" /></td>
-      <td class="right">1</td>
-      <td><input type="text" class="note" data-kind="api" data-idx="${idx}" /></td>
-    </tr>`);
+    table.push('<tr>'
+      + '<td><code>' + r.imei + '</code></td>'
+      + '<td>' + display
+        + (warnIcloud ? ('<div>' + warnIcloud + '</div>') : '')
+        + (hint ? ('<div>' + hint + '</div>') : '')
+        + (usedTag ? ('<div>' + usedTag + '</div>') : '')
+        + (purchInfo || '')
+      + '</td>'
+      + '<td>' + (r.color || '') + '</td>'
+      + '<td>' + (r.storage || '') + '</td>'
+      + '<td><span class="tag">' + (r.carrier || 'Unknown') + '</span></td>'
+      + '<td><div>' + (r.match_device || '—') + '</div><div class="muted">' + (r.match_sheet || '') + '</div></td>'
+      + '<td class="right"><input type="number" class="paid" data-kind="api" data-idx="' + idx + '" value="' + paidDollars + '" step="1" min="0" /></td>'
+      + '<td class="right">1</td>'
+      + '<td><input type="text" class="note" data-kind="api" data-idx="' + idx + '" /></td>'
+      + '</tr>');
   });
 
   // Manual rows
-  mrows.forEach((r, idx) => {
-    table.push(`<tr>
-      <td><em class="muted">manual</em></td>
-      <td>${r.device || ''}</td>
-      <td>${r.color || ''}</td>
-      <td>${r.storage || ''}</td>
-      <td><span class="tag">${r.carrier || 'Unknown'}</span></td>
-      <td><div class="muted">—</div></td>
-      <td class="right"><input type="number" class="mpaid" data-idx="${idx}" value="${r.unitPrice||''}" step="1" min="0" /></td>
-      <td class="right"><input type="number" class="mqty" data-idx="${idx}" value="${r.qty||1}" step="1" min="1" style="width:80px"/></td>
-      <td><input type="text" class="mnote" data-idx="${idx}" value="${r.notes||''}" /></td>
-    </tr>`);
+  mrows.forEach(function(r, idx) {
+    table.push('<tr>'
+      + '<td><em class="muted">manual</em></td>'
+      + '<td>' + (r.device || '') + '</td>'
+      + '<td>' + (r.color || '') + '</td>'
+      + '<td>' + (r.storage || '') + '</td>'
+      + '<td><span class="tag">' + (r.carrier || 'Unknown') + '</span></td>'
+      + '<td><div class="muted">—</div></td>'
+      + '<td class="right"><input type="number" class="mpaid" data-idx="' + idx + '" value="' + (r.unitPrice || '') + '" step="1" min="0" /></td>'
+      + '<td class="right"><input type="number" class="mqty" data-idx="' + idx + '" value="' + (r.qty || 1) + '" step="1" min="1" style="width:80px"/></td>'
+      + '<td><input type="text" class="mnote" data-idx="' + idx + '" value="' + (r.notes || '') + '" /></td>'
+      + '</tr>');
   });
 
-  table.push(`</tbody></table>
-    <div class="row" style="margin-top:12px;">
-      <button class="btn" id="download">Download CSV</button>
-      <span class="muted">CSV exports price paid in <b>cents</b>, includes <b>quantity</b> & <b>line total</b>, and marks <b>used</b>.</span>
-    </div>`);
+  table.push('</tbody></table>'
+    + '<div class="row" style="margin-top:12px;">'
+    + '  <button class="btn" id="download">Download CSV</button>'
+    + '  <span class="muted">CSV exports price paid in <b>cents</b>, includes <b>quantity</b> & <b>line total</b>, and marks <b>used</b>.</span>'
+    + '</div>');
 
   el.innerHTML = table.join('');
 
-  // Wire up change listeners to recompute totals
-  document.querySelectorAll('.paid,.mpaid,.mqty').forEach(inp => {
+  // Change listeners for totals
+  Array.prototype.forEach.call(document.querySelectorAll('.paid,.mpaid,.mqty'), function(inp) {
     inp.addEventListener('input', computeTotals);
   });
 
   // Download CSV
-  document.getElementById('download').onclick = () => {
-    const payload = [];
+  document.getElementById('download').onclick = function() {
+    var payload = [];
 
     // API rows (qty=1)
-    state.rows.forEach((r, idx) => {
+    state.rows.forEach(function(r, idx) {
       if (!r.ok) return;
-      const dollars = Number((document.querySelector(`.paid[data-kind="api"][data-idx="${idx}"]`) as HTMLInputElement)?.value || '');
-      const cents = Number.isFinite(dollars) ? Math.round(dollars * 100) : '';
-      const note = (document.querySelector(`.note[data-kind="api"][data-idx="${idx}"]`) as HTMLInputElement)?.value || '';
+      var paidEl = document.querySelector('.paid[data-kind="api"][data-idx="' + idx + '"]');
+      var noteEl = document.querySelector('.note[data-kind="api"][data-idx="' + idx + '"]');
+      var dollars = Number((paidEl && paidEl.value) ? paidEl.value : '');
+      var cents = isFinite(dollars) ? Math.round(dollars * 100) : '';
+      var note = noteEl ? noteEl.value : '';
       payload.push({
         manual: 'no',
         used: r.used ? 'yes' : 'no',
@@ -199,16 +205,19 @@ function render() {
         quantity: 1,
         unit_price_cents: cents,
         line_total_cents: cents,
-        suggested_price_cents: r.suggested_price_cents ?? '',
-        notes: note.trim(),
+        suggested_price_cents: (typeof r.suggested_price_cents !== 'undefined' ? r.suggested_price_cents : ''),
+        notes: (note || '').trim()
       });
     });
 
     // Manual rows
-    state.manual.forEach((r, idx) => {
-      const dollars = Number((document.querySelector(`.mpaid[data-idx="${idx}"]`) as HTMLInputElement)?.value || '');
-      const qty = Number((document.querySelector(`.mqty[data-idx="${idx}"]`) as HTMLInputElement)?.value || '1');
-      const cents = Number.isFinite(dollars) ? Math.round(dollars * 100) : 0;
+    state.manual.forEach(function(r, idx) {
+      var paidEl = document.querySelector('.mpaid[data-idx="' + idx + '"]');
+      var qtyEl = document.querySelector('.mqty[data-idx="' + idx + '"]');
+      var noteEl = document.querySelector('.mnote[data-idx="' + idx + '"]');
+      var dollars = Number((paidEl && paidEl.value) ? paidEl.value : '');
+      var qty = Number((qtyEl && qtyEl.value) ? qtyEl.value : '1');
+      var cents = isFinite(dollars) ? Math.round(dollars * 100) : 0;
       payload.push({
         manual: 'yes',
         used: '', used_source: '',
@@ -227,42 +236,54 @@ function render() {
         unit_price_cents: cents,
         line_total_cents: cents * Math.max(1, qty),
         suggested_price_cents: '',
-        notes: (document.querySelector(`.mnote[data-idx="${idx}"]`) as HTMLInputElement)?.value || '',
+        notes: noteEl ? noteEl.value : ''
       });
     });
 
-    const header = ['manual','used','used_source','imei','manufacturer','model_name','model_code','device','color','storage','carrier','icloud_lock','condition_hint','estimated_purchase_date','quantity','unit_price_cents','line_total_cents','suggested_price_cents','notes'];
-    const csv = [header.join(',')].concat(payload.map(o =>
-      header.map(k => JSON.stringify(String(o[k] ?? '')).replace(/^\uFEFF/, '')).join(',')
-    )).join('\n');
+    var header = ['manual','used','used_source','imei','manufacturer','model_name','model_code','device','color','storage','carrier','icloud_lock','condition_hint','estimated_purchase_date','quantity','unit_price_cents','line_total_cents','suggested_price_cents','notes'];
+    var lines = [header.join(',')];
+    payload.forEach(function(o) {
+      var row = header.map(function(k) {
+        var v = (o[k] != null) ? String(o[k]) : '';
+        // basic CSV escaping
+        return JSON.stringify(v).replace(/^\uFEFF/, '');
+      }).join(',');
+      lines.push(row);
+    });
+    var csv = lines.join('\n');
 
-    const blob = new Blob([csv], { type:'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = Object.assign(document.createElement('a'), { href: url, download: 'intake_export.csv' });
-    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    var blob = new Blob([csv], { type:'text/csv' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'intake_export.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
   };
 
   computeTotals();
 }
 
 function computeTotals() {
-  // Sum API dollar inputs
-  let totalDollars = 0;
-  document.querySelectorAll('.paid').forEach(inp => {
-    const v = Number((inp as HTMLInputElement).value || '');
-    if (Number.isFinite(v)) totalDollars += v;
+  var totalDollars = 0;
+
+  // API dollar inputs
+  Array.prototype.forEach.call(document.querySelectorAll('.paid'), function(inp) {
+    var v = Number(inp.value || '');
+    if (isFinite(v)) totalDollars += v;
   });
-  // Sum manual (unit * qty)
-  state.manual.forEach((r, idx) => {
-    const dollars = Number((document.querySelector(`.mpaid[data-idx="${idx}"]`) as HTMLInputElement)?.value || '');
-    const qty = Number((document.querySelector(`.mqty[data-idx="${idx}"]`) as HTMLInputElement)?.value || '1');
-    if (Number.isFinite(dollars) && Number.isFinite(qty)) totalDollars += dollars * Math.max(1, qty);
+  // Manual (unit * qty)
+  state.manual.forEach(function(r, idx) {
+    var paidEl = document.querySelector('.mpaid[data-idx="' + idx + '"]');
+    var qtyEl = document.querySelector('.mqty[data-idx="' + idx + '"]');
+    var dollars = Number((paidEl && paidEl.value) ? paidEl.value : '');
+    var qty = Number((qtyEl && qtyEl.value) ? qtyEl.value : '1');
+    if (isFinite(dollars) && isFinite(qty)) totalDollars += dollars * Math.max(1, qty);
   });
 
-  document.getElementById('totals').innerText = `Total: $${Math.round(totalDollars)}`;
+  document.getElementById('totals').innerText = 'Total: $' + Math.round(totalDollars);
 }
 
-document.getElementById('reset').onclick = () => {
+document.getElementById('reset').onclick = function() {
   document.getElementById('imeis').value = '';
   state.rows = [];
   state.manual = [];
@@ -271,42 +292,44 @@ document.getElementById('reset').onclick = () => {
 };
 
 // Add manual item
-document.getElementById('addManual').onclick = (e) => {
+document.getElementById('addManual').onclick = function(e) {
   e.preventDefault();
-  const device = (document.getElementById('m_device') as HTMLInputElement).value.trim();
-  const color = (document.getElementById('m_color') as HTMLInputElement).value.trim();
-  const storage = (document.getElementById('m_storage') as HTMLInputElement).value.trim();
-  const carrier = (document.getElementById('m_carrier') as HTMLSelectElement).value || 'Unknown';
-  const qty = Number((document.getElementById('m_qty') as HTMLInputElement).value || '1');
-  const unitPrice = Number((document.getElementById('m_price') as HTMLInputElement).value || '');
+  var device = document.getElementById('m_device').value.trim();
+  var color = document.getElementById('m_color').value.trim();
+  var storage = document.getElementById('m_storage').value.trim();
+  var carrier = document.getElementById('m_carrier').value || 'Unknown';
+  var qty = Number(document.getElementById('m_qty').value || '1');
+  var unitPrice = Number(document.getElementById('m_price').value || '');
   if (!device) return;
-  state.manual.push({ device, color, storage, carrier, qty: Math.max(1, qty), unitPrice: Number.isFinite(unitPrice) ? unitPrice : 0, notes: '' });
+  state.manual.push({ device: device, color: color, storage: storage, carrier: carrier, qty: Math.max(1, qty), unitPrice: isFinite(unitPrice) ? unitPrice : 0, notes: '' });
   render();
 };
 
-document.getElementById('form').onsubmit = async (e) => {
+document.getElementById('form').onsubmit = async function(e) {
   e.preventDefault();
-  const raw = (document.getElementById('imeis') as HTMLTextAreaElement).value || '';
-  const imeis = raw.split(/[\s,;\n\r]+/).map(s=>s.trim()).filter(Boolean).slice(0,200);
+  var raw = document.getElementById('imeis').value || '';
+  var imeis = raw.split(/[\s,;\n\r]+/).map(function(s){ return s.trim(); }).filter(Boolean).slice(0,200);
   if (!imeis.length) return;
 
   // loading state
-  const loader = document.getElementById('loader');
-  const btn = document.getElementById('lookupBtn') as HTMLButtonElement;
+  var loader = document.getElementById('loader');
+  var btn = document.getElementById('lookupBtn');
   loader.classList.add('show'); btn.disabled = true; btn.innerText = 'Looking up…';
 
   try {
     const res = await fetch('/api/intake', {
       method: 'POST',
       headers: { 'content-type':'application/json' },
-      body: JSON.stringify({ imeis })
+      body: JSON.stringify({ imeis: imeis })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Lookup failed');
+
     state.rows = data.items || [];
     render();
   } catch (err) {
-    alert(String(err));
+    alert(String(err && err.message ? err.message : err));
+    console.error(err);
   } finally {
     loader.classList.remove('show'); btn.disabled = false; btn.innerText = 'Lookup & Price';
   }
