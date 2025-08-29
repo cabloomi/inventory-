@@ -36,7 +36,7 @@ function parseCSV(text: string): Record<string, string>[] {
   });
 }
 
-/* ---------------- Text helpers ---------------- */
+/* ---------------- Text & match helpers ---------------- */
 function norm(s: string): string {
   return s.toLowerCase().replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -52,7 +52,7 @@ function lev(a: string, b: string): number {
   return dp[m][n];
 }
 
-/* ---------------- Sickw field parsing ---------------- */
+/* ---------------- Model Description parsing ---------------- */
 function parseModelDescription(desc: string | null) {
   // Example: "IPHONE 16 PRO DESERT 256GB-USA"
   if (!desc) return { deviceName: null, color: null, storageGb: null };
@@ -69,7 +69,6 @@ function parseModelDescription(desc: string | null) {
     if (re.test(cleaned)) { color = c.charAt(0) + c.slice(1).toLowerCase(); break; }
   }
 
-  // make a nice device name from iPhone tokens
   const toks = cleaned.split(/\s+/);
   const iIdx = toks.indexOf("IPHONE");
   let deviceName: string | null = null;
@@ -89,36 +88,33 @@ function parseModelDescription(desc: string | null) {
   return { deviceName, color, storageGb };
 }
 
-/* --------- Signature parsing (generation/tier) --------- */
+/* --------- Signature parsing (generation/tier for iPhone) --------- */
 type Tier = "base" | "plus" | "pro" | "promax" | "e" | null;
 
 function parseIphoneSignature(text: string | null) {
   if (!text) return { gen: null as number|null, tier: null as Tier, storage: null as number|null, color: null as string|null };
   const s = text.toUpperCase();
 
-  // generation
-  const g = s.match(/\b(1[0-9]|[6-9])\b/); // crude: finds "16" etc.
+  const g = s.match(/\b(1[0-9]|[6-9])\b/);
   const gen = g ? parseInt(g[1], 10) : null;
 
-  // tier detection (order matters)
   let tier: Tier = null;
   if (/\bPRO\s*MAX\b/.test(s)) tier = "promax";
-  else if (/\bPRO\b/.test(s)) tier = "pro";
+  else if (/\bPRO\b/.test(s))  tier = "pro";
   else if (/\bPLUS\b/.test(s)) tier = "plus";
-  else if (/\bIPHONE\s*E\b|\b\se\b/.test(s) || /\b16E\b/.test(s)) tier = "e";
+  else if (/\bIPHONE\s*E\b|\b\se\b/.test(s) || /\b1[0-9]E\b/.test(s)) tier = "e";
   else tier = "base";
 
-  // storage
   const sm = s.match(/(\d{2,4})\s*GB\b/);
   const storage = sm ? parseInt(sm[1], 10) : null;
 
-  // color (lightweight)
   const cm = s.match(/\b(BLACK|WHITE|BLUE|PINK|PURPLE|GOLD|DESERT|TITANIUM|NATURAL|GREEN|RED|YELLOW|SILVER|MIDNIGHT|STARLIGHT)\b/);
   const color = cm ? cm[1].charAt(0) + cm[1].slice(1).toLowerCase() : null;
 
   return { gen, tier, storage, color };
 }
 
+/* ---------------- Carrier & iCloud ---------------- */
 function parseCarrier(obj: Record<string, any>): string | null {
   const preferred = ["carrier","network","locked carrier","original carrier","sold by","sold to","activation policy","sim"];
   const known = [
@@ -163,6 +159,45 @@ function hasIcloudOn(obj: Record<string, any>): boolean {
   return false;
 }
 
+/* ---------------- Purchase date parsing ---------------- */
+function parseDateLoose(s: string): Date | null {
+  const t = s.trim();
+  const d1 = new Date(t);
+  if (!isNaN(+d1)) return d1;
+
+  const m = t.match(/^(\d{1,4})[\/\-.](\d{1,2})[\/\-.](\d{1,4})$/);
+  if (m) {
+    let a = parseInt(m[1],10), b = parseInt(m[2],10), c = parseInt(m[3],10);
+    if (m[1].length === 4) return new Date(a, b-1, c);             // YYYY-M-D
+    if (m[3].length === 4) {                                       // M/D/Y or D/M/Y
+      const Y = c;
+      if (a > 12) return new Date(Y, b-1, a); else return new Date(Y, a-1, b);
+    }
+  }
+  return null;
+}
+function extractEstimatedPurchaseDate(obj: Record<string, any>) {
+  let raw: string | null = null;
+  for (const [k,v] of Object.entries(obj || {})) {
+    const kk = String(k).toLowerCase().replace(/[:\s]+/g,' ').trim();
+    if (kk.includes("estimated purchase date")) {
+      raw = String(v ?? "").trim();
+      break;
+    }
+  }
+  if (!raw) return { iso: null as string|null, ageDays: null as number|null, hint: null as "check_for_use"|"assume_used"|null };
+
+  const dt = parseDateLoose(raw);
+  if (!dt) return { iso: null, ageDays: null, hint: null };
+
+  const now = Date.now();
+  const age = Math.floor((now - dt.getTime()) / 86400000);
+  let hint: "check_for_use"|"assume_used"|null = null;
+  if (age > 45) hint = "assume_used"; else if (age > 14) hint = "check_for_use";
+  const iso = dt.toISOString().slice(0,10);
+  return { iso, ageDays: age, hint };
+}
+
 /* ---------------- Sickw fetch ---------------- */
 async function sickwFetch(env: Env, imei: string) {
   const url = new URL("https://sickw.com/api.php");
@@ -189,9 +224,8 @@ async function sickwFetch(env: Env, imei: string) {
 
   const carrier  = parseCarrier(res) || "Unknown";
   const icloudOn = hasIcloudOn(res);
-
-  // signature combines MD + display
-  const sig = parseIphoneSignature([modelDesc, display].filter(Boolean).join(" "));
+  const sig      = parseIphoneSignature([modelDesc, display].filter(Boolean).join(" "));
+  const purch    = extractEstimatedPurchaseDate(res);
 
   return {
     imei: res.IMEI || j.imei || imei,
@@ -204,39 +238,48 @@ async function sickwFetch(env: Env, imei: string) {
     carrier,
     icloud_lock_on: icloudOn,
     sig, // {gen, tier, storage, color}
+    estimated_purchase_date: purch.iso,
+    estimated_purchase_age_days: purch.ageDays,
+    condition_hint: purch.hint // "check_for_use" | "assume_used" | null
   };
 }
 
-/* --------- Price matching with strict model/tier --------- */
+/* ---------------- Sheet preference (brand + used/new) ---------------- */
 function isWatchOrAirpodsSheet(sheetName?: string) {
   if (!sheetName) return false;
   const s = sheetName.toLowerCase();
   return s.includes("watch") || s.includes("airpod") || s.includes("airpods");
 }
-function sheetPreference(isUnlocked: boolean) {
-  return isUnlocked
-    ? [/iphone.*unlock/i]          // unlocked → only unlocked sheets
-    : [/^iphone(?!.*unlock)/i];    // locked → iphone sheets without "unlock"
+
+function sheetPatternsFor(brand: "apple"|"samsung"|"other", isUsed: boolean, carrier: string) {
+  const unlocked = carrier.toLowerCase() === "unlocked";
+  if (brand === "apple") {
+    if (isUsed) {
+      return [/iphone.*used/i, /used.*iphone/i];           // USED iPhones
+    } else {
+      return unlocked ? [/iphone.*unlock(?!.*used)/i]      // New + Unlocked iPhones
+                      : [/^iphone(?!.*unlock)(?!.*used)/i];// New + Locked iPhones
+    }
+  }
+  if (brand === "samsung") {
+    if (isUsed) return [/samsung.*used/i, /used.*samsung/i];
+    return [/^samsung(?!.*used)/i];
+  }
+  // fallback
+  return isUsed ? [/used/i] : [/.*/i];
 }
 
-function parseRowSignature(rowDevice: string) {
-  // Parse the same signature from a prices.csv device string
-  const sig = parseIphoneSignature(rowDevice);
-  return sig;
-}
+/* ---------------- Price matching ---------------- */
+function parseRowSignature(rowDevice: string) { return parseIphoneSignature(rowDevice); }
 
 function scoreMatchStrict(target: ReturnType<typeof parseIphoneSignature>, cand: ReturnType<typeof parseIphoneSignature>) {
-  // hard requirements: same generation & tier
   if (target.gen && cand.gen && target.gen !== cand.gen) return -Infinity;
   if (target.tier && cand.tier && target.tier !== cand.tier) return -Infinity;
-
-  // soft boosts
   let score = 0.5;
   if (target.storage && cand.storage && target.storage === cand.storage) score += 0.35;
   return score;
 }
 function scoreMatchRelaxed(target: ReturnType<typeof parseIphoneSignature>, cand: ReturnType<typeof parseIphoneSignature>, nameScore: number) {
-  // relaxed: require same generation; allow tier mismatch but penalize
   if (target.gen && cand.gen && target.gen !== cand.gen) return -Infinity;
   let score = 0.3 * nameScore;
   if (target.tier && cand.tier && target.tier === cand.tier) score += 0.2;
@@ -244,91 +287,126 @@ function scoreMatchRelaxed(target: ReturnType<typeof parseIphoneSignature>, cand
   return score;
 }
 
-function bestPriceMatchSmart(devName: string, isUnlocked: boolean, targetSig: ReturnType<typeof parseIphoneSignature>, priceRows: Record<string,string>[]) {
-  // Filter sheets by lock state and exclude watch/airpods
-  const preferred = sheetPreference(isUnlocked);
+function bestPriceMatchSmart(
+  devName: string,
+  storage: string | null,
+  carrier: string,
+  brand: "apple"|"samsung"|"other",
+  isUsed: boolean,
+  targetSig: ReturnType<typeof parseIphoneSignature>,
+  priceRows: Record<string,string>[]
+) {
+  const patterns = sheetPatternsFor(brand, isUsed, carrier);
   const eligible = priceRows.filter(r => {
     const sheet = (r.sheet || "");
     if (isWatchOrAirpodsSheet(sheet)) return false;
-    return preferred.some(re => re.test(sheet));
+    return patterns.some(re => re.test(sheet));
   });
-
   const candidates = eligible.length ? eligible : priceRows.filter(r => !isWatchOrAirpodsSheet(r.sheet));
 
   const targetNorm = norm(devName);
 
-  // Pass 1: strict (same gen + same tier)
-  let best: Record<string,string> | null = null;
-  let bestScore = -Infinity;
+  if (brand === "apple") {
+    // strict
+    let best: Record<string,string> | null = null;
+    let bestScore = -Infinity;
+    for (const row of candidates) {
+      const dev = (row["device"] || "");
+      if (!dev) continue;
+      const candSig = parseRowSignature(dev);
+      const s = scoreMatchStrict(targetSig, candSig);
+      if (s === -Infinity) continue;
 
-  for (const row of candidates) {
-    const dev = (row["device"] || "");
-    if (!dev) continue;
-    const candSig = parseRowSignature(dev);
-    const s = scoreMatchStrict(targetSig, candSig);
-    if (s === -Infinity) continue;
-
-    // minor name similarity term
-    const hay = norm(dev);
-    let nameScore = 0.0;
-    if (hay.includes(targetNorm) || targetNorm.includes(hay)) nameScore = 1.0;
-    else {
-      const len = Math.max(hay.length, targetNorm.length);
-      const d = lev(hay, targetNorm);
-      nameScore = 1 - Math.min(1, d / Math.max(1, len));
+      const hay = norm(dev);
+      let nameScore = 0.0;
+      if (hay.includes(targetNorm) || targetNorm.includes(hay)) nameScore = 1.0;
+      else {
+        const len = Math.max(hay.length, targetNorm.length);
+        const d = lev(hay, targetNorm);
+        nameScore = 1 - Math.min(1, d / Math.max(1, len));
+      }
+      const total = s + 0.15 * nameScore;
+      if (total > bestScore) { bestScore = total; best = row; }
     }
-    const total = s + 0.15 * nameScore;
-
-    if (total > bestScore) { bestScore = total; best = row; }
-  }
-
-  if (best) {
-    const purchase_cents = parseInt(best["purchase_price_cents"] || "0", 10) || 0;
-    const base_cents     = parseInt(best["base_price_cents"] || "0", 10) || 0;
-    return {
-      match: best,
-      confidence: Math.round(bestScore * 1000) / 1000,
-      purchase_price_cents: purchase_cents,
-      purchase_price_dollars: Math.round(purchase_cents / 100),
-      base_price_cents: base_cents
-    };
-  }
-
-  // Pass 2: relaxed (same gen, tier optional) — still never watch/airpods
-  best = null; bestScore = -Infinity;
-  for (const row of candidates) {
-    const dev = (row["device"] || "");
-    if (!dev) continue;
-    const candSig = parseRowSignature(dev);
-
-    const hay = norm(dev);
-    let nameScore = 0.0;
-    if (hay.includes(targetNorm) || targetNorm.includes(hay)) nameScore = 1.0;
-    else {
-      const len = Math.max(hay.length, targetNorm.length);
-      const d = lev(hay, targetNorm);
-      nameScore = 1 - Math.min(1, d / Math.max(1, len));
+    if (best) {
+      const purchase_cents = parseInt(best["purchase_price_cents"] || "0", 10) || 0;
+      const base_cents     = parseInt(best["base_price_cents"] || "0", 10) || 0;
+      return {
+        match: best,
+        confidence: Math.round(bestScore * 1000) / 1000,
+        purchase_price_cents: purchase_cents,
+        purchase_price_dollars: Math.round(purchase_cents / 100),
+        base_price_cents: base_cents
+      };
     }
 
-    const total = scoreMatchRelaxed(targetSig, candSig, nameScore);
-    if (total === -Infinity) continue;
+    // relaxed
+    best = null; bestScore = -Infinity;
+    for (const row of candidates) {
+      const dev = (row["device"] || "");
+      if (!dev) continue;
+      const candSig = parseRowSignature(dev);
 
-    if (total > bestScore) { bestScore = total; best = row; }
+      const hay = norm(dev);
+      let nameScore = 0.0;
+      if (hay.includes(targetNorm) || targetNorm.includes(hay)) nameScore = 1.0;
+      else {
+        const len = Math.max(hay.length, targetNorm.length);
+        const d = lev(hay, targetNorm);
+        nameScore = 1 - Math.min(1, d / Math.max(1, len));
+      }
+
+      const total = scoreMatchRelaxed(targetSig, candSig, nameScore);
+      if (total === -Infinity) continue;
+
+      if (total > bestScore) { bestScore = total; best = row; }
+    }
+    if (best) {
+      const purchase_cents = parseInt(best["purchase_price_cents"] || "0", 10) || 0;
+      const base_cents     = parseInt(best["base_price_cents"] || "0", 10) || 0;
+      return {
+        match: best,
+        confidence: Math.round(bestScore * 1000) / 1000,
+        purchase_price_cents: purchase_cents,
+        purchase_price_dollars: Math.round(purchase_cents / 100),
+        base_price_cents: base_cents
+      };
+    }
+  } else {
+    // Samsung/Other: name similarity + storage boost
+    let best: Record<string,string> | null = null;
+    let bestScore = -Infinity;
+    for (const row of candidates) {
+      const dev = (row["device"] || "");
+      if (!dev) continue;
+      const hay = norm(dev);
+      let score = 0.0;
+      if (hay.includes(targetNorm) || targetNorm.includes(hay)) score = 0.8;
+      else {
+        const len = Math.max(hay.length, targetNorm.length);
+        const d = lev(hay, targetNorm);
+        score = 0.8 * (1 - Math.min(1, d / Math.max(1, len)));
+      }
+      if (storage) {
+        const sNorm = storage.replace(/\s+/g, "").toLowerCase(); // "256gb"
+        if (hay.includes(sNorm) || dev.toLowerCase().includes(sNorm)) score += 0.15;
+      }
+      if (carrier.toLowerCase() === "unlocked" && (hay.includes("unlock") || hay.includes("unlocked"))) score += 0.05;
+      if (score > bestScore) { bestScore = score; best = row; }
+    }
+    if (best) {
+      const purchase_cents = parseInt(best["purchase_price_cents"] || "0", 10) || 0;
+      const base_cents     = parseInt(best["base_price_cents"] || "0", 10) || 0;
+      return {
+        match: best,
+        confidence: Math.round(bestScore * 1000) / 1000,
+        purchase_price_cents: purchase_cents,
+        purchase_price_dollars: Math.round(purchase_cents / 100),
+        base_price_cents: base_cents
+      };
+    }
   }
 
-  if (best) {
-    const purchase_cents = parseInt(best["purchase_price_cents"] || "0", 10) || 0;
-    const base_cents     = parseInt(best["base_price_cents"] || "0", 10) || 0;
-    return {
-      match: best,
-      confidence: Math.round(bestScore * 1000) / 1000,
-      purchase_price_cents: purchase_cents,
-      purchase_price_dollars: Math.round(purchase_cents / 100),
-      base_price_cents: base_cents
-    };
-  }
-
-  // Nothing plausible
   return { match: null, confidence: 0, purchase_price_cents: 0, purchase_price_dollars: 0, base_price_cents: 0 };
 }
 
@@ -341,11 +419,19 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   try {
     const body = await request.json().catch(()=> ({}));
-    const imeis: string[] = Array.isArray(body?.imeis) ? body.imeis : [];
-    if (!imeis.length) {
+    const imeisIn: string[] = Array.isArray(body?.imeis) ? body.imeis : [];
+    if (!imeisIn.length) {
       return new Response(JSON.stringify({ error: "Provide { imeis: [...] }" }), { status: 400, headers: { ...cors, "content-type":"application/json" }});
     }
-    const capped = imeis.slice(0, 200).map(s => String(s).trim()).filter(Boolean);
+
+    // Detect trailing 'u' = used override; do NOT send 'u' to Sickw
+    const parsed = imeisIn.slice(0, 200).map(raw => {
+      const t = String(raw).trim();
+      const usedOverride = /u$/i.test(t);
+      const trimmed = usedOverride ? t.slice(0, -1).trim() : t;
+      const imei = trimmed.replace(/\s+/g,''); // keep digits straight
+      return { raw: t, imei, usedOverride };
+    });
 
     // prices.csv once
     const pricesResp = await fetch(PRICES_CSV_URL, { headers: { "accept": "text/csv" }});
@@ -354,16 +440,30 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const priceRows = parseCSV(csvText);
 
     const items: any[] = [];
-    for (const imei of capped) {
+    for (const rec of parsed) {
       try {
-        const dev = await sickwFetch(env, imei);
-        const isUnlocked = (dev.carrier || "").toLowerCase() === "unlocked";
+        const dev = await sickwFetch(env, rec.imei);
+
+        // Brand detection
+        const man = (dev.manufacturer || "").toLowerCase();
+        const brand: "apple"|"samsung"|"other" =
+          man.includes("apple") ? "apple" : man.includes("samsung") ? "samsung" : "other";
+
+        // Determine used flag:
+        // - override if IMEI ended with 'u'
+        // - OR assume used if Estimated Purchase Date > 45d
+        const isUsed = rec.usedOverride || dev.condition_hint === "assume_used";
+
         const pricing = bestPriceMatchSmart(
           dev.device_display,
-          isUnlocked,
+          dev.storage,
+          dev.carrier || "Unknown",
+          brand,
+          isUsed,
           dev.sig,
           priceRows
         );
+
         items.push({
           ok: true,
           imei: dev.imei,
@@ -380,10 +480,15 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
           base_price_cents: pricing.base_price_cents || null, // hidden on UI
           suggested_price_cents: pricing.purchase_price_cents || null,
           suggested_price_dollars: pricing.purchase_price_dollars || null,
-          confidence: pricing.confidence || 0
+          confidence: pricing.confidence || 0,
+          estimated_purchase_date: dev.estimated_purchase_date,
+          estimated_purchase_age_days: dev.estimated_purchase_age_days,
+          condition_hint: dev.condition_hint,   // "check_for_use" | "assume_used" | null
+          used: isUsed,                         // NEW: used flag (via 'u' or date)
+          used_source: rec.usedOverride ? "flag" : (dev.condition_hint === "assume_used" ? "date" : "")
         });
       } catch (e: any) {
-        items.push({ ok: false, imei, error: String(e?.message || e) });
+        items.push({ ok: false, imei: rec.imei, error: String(e?.message || e) });
       }
       await new Promise(r => setTimeout(r, 160));
     }
