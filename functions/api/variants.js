@@ -1,154 +1,172 @@
 export async function onRequestGet(context) {
   try {
     const url = new URL(context.request.url);
-    const q = (url.searchParams.get("q") || "").trim();
-    const storage = (url.searchParams.get("storage") || "").trim();
-    const brand = (url.searchParams.get("brand") || "").trim();
-
-    if (!q) return json({ error: "Missing q" }, 400);
-
-    const csvText = await fetchCsv("https://allenslists.pages.dev/data/prices.csv");
-    const rows = parseCsv(csvText);
-
-    const prices = getVariantsFor({ q, storage, brand, rows });
+    const q = url.searchParams.get('q') || '';
+    const storage = url.searchParams.get('storage') || '';
+    const brand = url.searchParams.get('brand') || '';
+    if (!q) return json({ error: 'Missing q' }, 400);
+    const csv = await fetchCsv('https://allenslists.pages.dev/data/prices.csv');
+    const prices = getVariantsFor({ q, storage, brand, csv });
     return json({ prices });
   } catch (e) {
     return json({ error: String(e?.message || e) }, 500);
   }
 }
 
-/** ---------- helpers ---------- **/
-
-function json(body, status = 200, extraHeaders = {}) {
-  return new Response(JSON.stringify(body), {
+function json(obj, status=200) {
+  return new Response(JSON.stringify(obj), {
     status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "cache-control": "no-store",
-      ...extraHeaders,
-    },
+    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }
   });
 }
 
 async function fetchCsv(url) {
-  const res = await fetch(url, { cf: { cacheTtl: 60, cacheEverything: true } });
-  if (!res.ok) throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
-  return await res.text();
+  const resp = await fetch(url, { cf: { cacheTtl: 300 } });
+  if (!resp.ok) throw new Error('Failed to fetch prices.csv');
+  const text = await resp.text();
+  const rows = parseCSV(text);
+  const header = rows.shift() || [];
+  const idx = makeIndex(header);
+  return { rows, header, idx };
 }
 
-/** very small CSV parser (no quotes-with-commas edge cases) */
-function parseCsv(text) {
-  const lines = text.split(/\r?\n/).filter(Boolean);
-  if (lines.length === 0) return [];
-  const headers = lines[0].split(",").map((h) => h.trim());
-  return lines.slice(1).map((line) => {
-    const cols = line.split(","); // assumes simple CSV
-    const obj = {};
-    headers.forEach((h, i) => (obj[h] = (cols[i] ?? "").trim()));
-    return normalizeRow(obj);
-  });
+function getField(r, idx, name) {
+  const i = idx[name];
+  return (i != null) ? r[i] : '';
 }
 
-function normalizeRow(row) {
-  // add convenience/normalized fields without destroying original columns
-  const out = { ...row };
+function getVariantsFor({ q, storage, brand, csv }) {
+  const { rows, idx } = csv;
+  const qNorm = normalize(q);
+  const storageNorm = normalize(storage);
 
-  // brand/model fallbacks
-  out.brand = row.brand || inferBrand(row.model || row["Model"] || "");
-  out.model = row.model || row["Model"] || "";
+  const groups = { NEW_UNLOCKED: [], NEW_LOCKED: [], USED_UNLOCKED: [], USED_LOCKED: [] };
 
-  // storage normalization (e.g., "128GB" -> "128")
-  const storRaw =
-    row.storage ||
-    row["Storage"] ||
-    row["storage_gb"] ||
-    row["Capacity"] ||
-    "";
-  const storMatch = String(storRaw).match(/\d{2,4}/);
-  out.storage_gb = storMatch ? Number(storMatch[0]) : null;
+  for (const r of rows) {
+    const sheet = getField(r, idx, 'sheet') || getField(r, idx, 'Sheet') || '';
+    const device = getField(r, idx, 'device') || getField(r, idx, 'Device') || '';
+    const pc = getField(r, idx, 'price_cents') || getField(r, idx, 'price') || '';
+    const price_cents = toCents(pc);
 
-  // condition, lock state (various header spellings)
-  out.condition = (row.condition || row.Condition || "").toUpperCase();
-  out.lock_state = (row.lock_state || row.lock || row["Carrier Lock"] || "").toUpperCase();
+    const devNorm = normalize(device);
+    const sheetNorm = normalize(sheet);
 
-  // price normalization (prefer cents if present)
-  const pc = toNumber(row.price_cents ?? row.price_cent ?? "");
-  const p = toNumber(row.price ?? row.Price ?? "");
-  out.price_cents =
-    Number.isFinite(pc) && pc > 0
-      ? Math.round(pc)
-      : Number.isFinite(p) && p > 0
-      ? Math.round(p * 100)
-      : null;
+    if (brand) {
+      if (brand === 'apple' && !sheetNorm.includes('iphone') && !devNorm.includes('iphone')) continue;
+      if (brand === 'samsung' && !sheetNorm.includes('samsung') && !devNorm.includes('samsung')) continue;
+    }
 
-  // helpful slugs for filtering
-  out._slug = slug(out.brand + " " + out.model);
-  out._lock = slug(out.lock_state);
-  out._cond = slug(out.condition);
+    if (storageNorm && !devNorm.includes(storageNorm)) continue;
 
+    const score = scoreMatch(qNorm, devNorm);
+    if (score <= 0) continue;
+
+    const key = sheetKey(sheetNorm);
+    if (!key) continue;
+
+    groups[key].push({ device, sheet, price_cents, score });
+  }
+
+  function bestOf(arr) {
+    return arr.sort((a,b)=> b.score - a.score || a.price_cents - b.price_cents)[0];
+  }
+
+  const out = {};
+  let bestLabel = null;
+  let bestSheet = null;
+  let bestScore = -1;
+  for (const k of Object.keys(groups)) {
+    const best = bestOf(groups[k] || []);
+    if (best) {
+      out[k] = best.price_cents;
+      if (best.score > bestScore) {
+        bestScore = best.score;
+        bestLabel = best.device;
+        bestSheet = best.sheet;
+      }
+    }
+  }
+  if (bestLabel) {
+    out.match_device = bestLabel;
+    out.match_sheet = bestSheet;
+  }
   return out;
 }
 
-function toNumber(x) {
-  if (x == null) return NaN;
-  const n = Number(String(x).replace(/[,$\s]/g, ""));
-  return Number.isFinite(n) ? n : NaN;
+function toCents(val) {
+  if (val == null) return 0;
+  if (typeof val === 'number') return val > 10000 ? Math.round(val) : Math.round(val * 100);
+  const n = Number(String(val).replace(/[^0-9.]/g, ''));
+  if (!isNaN(n)) return n > 10000 ? Math.round(n) : Math.round(n * 100);
+  return 0;
 }
 
-function inferBrand(model) {
-  const m = model.toLowerCase();
-  if (/iphone|ipad|ipod|mac|apple/i.test(model)) return "Apple";
-  if (m.includes("galaxy") || m.includes("samsung")) return "Samsung";
-  if (m.includes("pixel") || m.includes("google")) return "Google";
-  return "";
+function normalize(s) {
+  return (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
-function slug(s) {
-  return String(s || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
+function sheetKey(sheetNorm) {
+  const isIphone = sheetNorm.includes('iphone');
+  const isSamsung = sheetNorm.includes('samsung');
+  const isUsed = sheetNorm.includes('used');
+  const isUnlocked = sheetNorm.includes('unlocked');
+  const isLocked = sheetNorm.includes('locked') && !isUnlocked;
+  if (!(isIphone || isSamsung)) return null;
+  if (isUsed && isUnlocked) return 'USED_UNLOCKED';
+  if (isUsed && isLocked) return 'USED_LOCKED';
+  if (!isUsed && isUnlocked) return 'NEW_UNLOCKED';
+  if (!isUsed && isLocked) return 'NEW_LOCKED';
+  return null;
 }
 
-/**
- * Main filter: fuzzy model match on q, optional storage/brand narrowing,
- * and return a compact payload your UI can use.
- */
-function getVariantsFor({ q, storage, brand, rows }) {
-  const qSlug = slug(q);
+function scoreMatch(q, dev) {
+  if (!q || !dev) return 0;
+  let score = 0;
+  const qTokens = q.split(/[^a-z0-9]+/).filter(Boolean);
+  for (const t of qTokens) {
+    if (dev.includes(t)) score += (t.length >= 3 ? 2 : 1);
+  }
+  const allFound = qTokens.every(t => dev.includes(t));
+  if (allFound) score += 3;
+  return score;
+}
 
-  const storageNum = storage ? Number(String(storage).match(/\d{2,4}/)?.[0]) : null;
-  const brandSlug = slug(brand);
+function parseCSV(text) {
+  const rows = [];
+  let i = 0, field = '', row = [], inQuotes = false;
+  function pushField(){ row.push(field); field=''; }
+  function pushRow(){ rows.push(row); row = []; }
+  while (i < text.length) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i+1] === '"') { field += '"'; i += 2; continue; }
+        inQuotes = false; i++; continue;
+      } else { field += c; i++; continue; }
+    } else {
+      if (c === '"') { inQuotes = true; i++; continue; }
+      if (c === ',') { pushField(); i++; continue; }
+      if (c === '\n') { pushField(); pushRow(); i++; continue; }
+      if (c === '\r') { i++; continue; }
+      field += c; i++;
+    }
+  }
+  pushField(); pushRow();
+  if (rows.length && rows[0].length && rows[0][0].charCodeAt(0) === 0xFEFF) {
+    rows[0][0] = rows[0][0].slice(1);
+  }
+  return rows;
+}
 
-  const filtered = rows.filter((r) => {
-    if (!r._slug.includes(qSlug)) return false;
-    if (storageNum && r.storage_gb && r.storage_gb !== storageNum) return false;
-    if (brandSlug && slug(r.brand) !== brandSlug) return false;
-    return true;
-  });
-
-  // Sort: prefer exact storage, then Unlocked over Locked, then USED over NEW (you can tweak)
-  filtered.sort((a, b) => {
-    const storScore = (r) => (storageNum && r.storage_gb === storageNum ? 0 : 1);
-    const lockScore = (r) => (r._lock.includes("unlock") ? 0 : 1);
-    const condScore = (r) => (r._cond.includes("used") ? 0 : 1);
-    return (
-      storScore(a) - storScore(b) ||
-      lockScore(a) - lockScore(b) ||
-      condScore(a) - condScore(b) ||
-      (a.price_cents ?? Infinity) - (b.price_cents ?? Infinity)
-    );
-  });
-
-  // Keep original columns, but project a friendly shape commonly used by your intake UI
-  return filtered.map((r) => ({
-    brand: r.brand,
-    model: r.model,
-    storage_gb: r.storage_gb,
-    condition: r.condition, // "USED" | "NEW" (varies by CSV)
-    lock_state: r.lock_state, // "UNLOCKED" | "LOCKED" (varies by CSV)
-    price_cents: r.price_cents, // normalized
-    // keep a full copy in case the UI needs less-common columns
-    row: r,
-  }));
+function makeIndex(header) {
+  const map = {};
+  header.forEach((h,i)=>{ map[(h||'').toString().trim().toLowerCase()] = i; });
+  return {
+    sheet: map['sheet'],
+    Sheet: map['sheet'],
+    device: map['device'],
+    Device: map['device'],
+    price_cents: map['price_cents'] != null ? map['price_cents'] : map['price'],
+    price: map['price_cents'] != null ? map['price_cents'] : map['price']
+  };
 }
