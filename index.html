@@ -6,7 +6,7 @@
 <title>Inventory Intake (Cloudflare Pages)</title>
 <style>
   body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#0b0f14; color:#e6f1ff; margin:0; }
-  .wrap { max-width: 1100px; margin: 20px auto; padding: 16px; background:#0f141a; border-radius:14px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+  .wrap { max-width: 1100px; margin: 20px auto; padding: 16px; background:#0f141a; border-radius:14px; box-shadow: 0 10px 30px rgba(0,0,0,.25); position: relative; }
   h1 { margin-top:0; }
   textarea { width:100%; min-height: 140px; border-radius:10px; padding:10px; background:#0d1218; color:#def; border:1px solid #213244; }
   .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
@@ -17,29 +17,62 @@
   th, td { padding: 10px 8px; border-bottom: 1px solid #213244; vertical-align: top; }
   th { text-align:left; color:#bfeaff; }
   input[type="text"], input[type="number"] { background:#0d1218; color:#def; border:1px solid #213244; border-radius:8px; padding:8px; width:100%; }
+  select { background:#0d1218; color:#def; border:1px solid #213244; border-radius:8px; padding:8px; }
   .tag { display:inline-block; padding:2px 8px; border-radius:999px; background:#1b2a3a; color:#bfeaff; font-size:12px; }
   .tag.red { background:#3a1b1b; color:#ffbfbf; }
+  .tag.yellow { background:#3a321b; color:#ffe4a6; }
+  .tag.green { background:#1b3a2a; color:#bfffd4; }
   .right { text-align:right; }
+  .totals { margin-top:12px; font-weight:700; }
+  /* loader */
+  .loader { position:absolute; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; border-radius:14px; }
+  .loader.show { display:flex; }
+  .spinner { width:42px; height:42px; border:5px solid #1b2a3a; border-top-color:#00e29b; border-radius:50%; animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
 <div class="wrap">
+  <div id="loader" class="loader"><div><div class="spinner" style="margin:auto"></div><div class="muted" style="margin-top:10px;text-align:center">Looking up IMEIs…</div></div></div>
+
   <h1>Inventory Intake (Pages Functions)</h1>
-  <p class="muted">Uses Sickw (service 61) and your live CSV. We’ll pre-fill <b>Price Paid ($)</b> with whole dollars, editable.</p>
+  <p class="muted">Add a trailing <b>“u”</b> after an IMEI to mark it as <b>Used</b> (we won’t send the “u” to Sickw). Unlocked iPhones use “iPhone New Unlocked” pages; Used devices use brand-specific <b>USED</b> pages.</p>
 
   <div id="balance" class="muted"></div>
 
   <form id="form">
     <label><b>Enter IMEIs (one per line, comma or space separated):</b></label>
-    <textarea id="imeis" placeholder="354442067957452&#10;353052118765432&#10;..."></textarea>
+    <textarea id="imeis" placeholder="354442067957452u&#10;353052118765432&#10;..."></textarea>
     <div class="row" style="margin-top:10px;">
-      <button class="btn" type="submit">Lookup & Price</button>
+      <button class="btn" id="lookupBtn" type="submit">Lookup & Price</button>
       <button class="btn secondary" id="reset" type="button">Reset</button>
-      <span class="muted">We match iPhones to iPhone sheets and Unlocked phones to the “iPhone New Unlocked” sheet first.</span>
+      <span class="muted">We’ll pre-fill <b>Price Paid ($)</b> with whole dollars from your site CSV.</span>
     </div>
   </form>
 
+  <h3 style="margin-top:20px;">Add Manual Item</h3>
+  <div class="row">
+    <input type="text" id="m_device" placeholder="Device (e.g., AirPods Pro 2)" style="flex: 2 1 260px;" />
+    <input type="text" id="m_color" placeholder="Color" style="flex: 1 1 140px;" />
+    <input type="text" id="m_storage" placeholder="Storage (e.g., 256GB)" style="flex: 1 1 140px;" />
+    <select id="m_carrier">
+      <option value="Unknown">Carrier</option>
+      <option>Unlocked</option>
+      <option>Verizon</option>
+      <option>T-Mobile</option>
+      <option>AT&T</option>
+      <option>Xfinity</option>
+      <option>Spectrum</option>
+      <option>US Cellular</option>
+      <option>Cricket</option>
+    </select>
+    <input type="number" id="m_qty" placeholder="Qty" min="1" step="1" value="1" style="width:90px" />
+    <input type="number" id="m_price" placeholder="Unit Price ($)" min="0" step="1" style="width:140px" />
+    <button class="btn" id="addManual">Add</button>
+  </div>
+
   <div id="out"></div>
+  <div class="totals" id="totals"></div>
 </div>
 
 <script>
@@ -55,31 +88,13 @@ async function fetchBalance() {
 }
 fetchBalance();
 
-document.getElementById('reset').onclick = () => {
-  document.getElementById('imeis').value = '';
-  document.getElementById('out').innerHTML = '';
-};
+const state = { rows: [], manual: [] };
 
-document.getElementById('form').onsubmit = async (e) => {
-  e.preventDefault();
-  const raw = document.getElementById('imeis').value || '';
-  const imeis = raw.split(/[\s,;\n\r]+/).map(s=>s.trim()).filter(Boolean).slice(0,200);
-  if (!imeis.length) return;
-
-  const res = await fetch('/api/intake', {
-    method: 'POST',
-    headers: { 'content-type':'application/json' },
-    body: JSON.stringify({ imeis })
-  });
-  const data = await res.json();
+function render() {
+  const rows = state.rows;
+  const mrows = state.manual;
 
   const el = document.getElementById('out');
-  if (!res.ok) {
-    el.innerHTML = '<div class="err">' + (data.error || 'Error') + '</div>';
-    return;
-  }
-
-  const rows = data.items || [];
   const table = [];
   table.push(`<table>
     <thead>
@@ -91,43 +106,85 @@ document.getElementById('form').onsubmit = async (e) => {
         <th>Carrier</th>
         <th>Matched (Sheet)</th>
         <th class="right">Price Paid ($)</th>
+        <th>Qty</th>
         <th>Notes</th>
       </tr>
     </thead><tbody>`);
 
+  // API rows (qty = 1)
   rows.forEach((r, idx) => {
     if (!r.ok) {
-      table.push(`<tr><td colspan="8" class="err">IMEI ${r.imei} → ${r.error || 'error'}</td></tr>`);
+      table.push(`<tr><td colspan="9" class="err">IMEI ${r.imei} → ${r.error || 'error'}</td></tr>`);
       return;
     }
-    const warn = r.icloud_lock_on ? `<span class="tag red">iCloud Lock: ON</span>` : '';
+    const warnIcloud = r.icloud_lock_on ? `<span class="tag red">iCloud Lock: ON</span>` : '';
+    const hint = r.condition_hint === 'assume_used'
+      ? `<span class="tag red">Assume Used</span>`
+      : (r.condition_hint === 'check_for_use' ? `<span class="tag yellow">Check for signs of use</span>` : '');
+    const usedTag = r.used ? `<span class="tag green">Used</span>` : '';
+
+    const purchInfo = r.estimated_purchase_date
+      ? `<div class="muted">Est. Purchase: ${r.estimated_purchase_date}${typeof r.estimated_purchase_age_days==='number' ? ` (${r.estimated_purchase_age_days}d ago)` : ''}</div>`
+      : '';
+
     const display = (r.device_display || ((r.manufacturer||'') + ' ' + (r.model_name||''))).trim();
     const paidDollars = typeof r.suggested_price_dollars === 'number' ? r.suggested_price_dollars : '';
+
     table.push(`<tr>
       <td><code>${r.imei}</code></td>
-      <td>${display} ${warn ? `<div>${warn}</div>` : ''}</td>
+      <td>${display} ${warnIcloud ? `<div>${warnIcloud}</div>` : ''} ${hint ? `<div>${hint}</div>` : ''} ${usedTag ? `<div>${usedTag}</div>` : ''} ${purchInfo}</td>
       <td>${r.color || ''}</td>
       <td>${r.storage || ''}</td>
       <td><span class="tag">${r.carrier || 'Unknown'}</span></td>
       <td><div>${r.match_device || '—'}</div><div class="muted">${r.match_sheet || ''}</div></td>
-      <td class="right"><input type="number" id="paid_${idx}" value="${paidDollars}" step="1" min="0" /></td>
-      <td><input type="text" id="note_${idx}" /></td>
+      <td class="right"><input type="number" class="paid" data-kind="api" data-idx="${idx}" value="${paidDollars}" step="1" min="0" /></td>
+      <td class="right">1</td>
+      <td><input type="text" class="note" data-kind="api" data-idx="${idx}" /></td>
+    </tr>`);
+  });
+
+  // Manual rows
+  mrows.forEach((r, idx) => {
+    table.push(`<tr>
+      <td><em class="muted">manual</em></td>
+      <td>${r.device || ''}</td>
+      <td>${r.color || ''}</td>
+      <td>${r.storage || ''}</td>
+      <td><span class="tag">${r.carrier || 'Unknown'}</span></td>
+      <td><div class="muted">—</div></td>
+      <td class="right"><input type="number" class="mpaid" data-idx="${idx}" value="${r.unitPrice||''}" step="1" min="0" /></td>
+      <td class="right"><input type="number" class="mqty" data-idx="${idx}" value="${r.qty||1}" step="1" min="1" style="width:80px"/></td>
+      <td><input type="text" class="mnote" data-idx="${idx}" value="${r.notes||''}" /></td>
     </tr>`);
   });
 
   table.push(`</tbody></table>
     <div class="row" style="margin-top:12px;">
       <button class="btn" id="download">Download CSV</button>
-      <span class="muted">CSV exports price paid in <b>cents</b> (dollars × 100).</span>
+      <span class="muted">CSV exports price paid in <b>cents</b>, includes <b>quantity</b> & <b>line total</b>, and marks <b>used</b>.</span>
     </div>`);
 
   el.innerHTML = table.join('');
 
+  // Wire up change listeners to recompute totals
+  document.querySelectorAll('.paid,.mpaid,.mqty').forEach(inp => {
+    inp.addEventListener('input', computeTotals);
+  });
+
+  // Download CSV
   document.getElementById('download').onclick = () => {
-    const payload = rows.map((r, idx) => r.ok ? (() => {
-      const dollars = Number((document.getElementById('paid_'+idx)?.value || '').trim());
+    const payload = [];
+
+    // API rows (qty=1)
+    state.rows.forEach((r, idx) => {
+      if (!r.ok) return;
+      const dollars = Number((document.querySelector(`.paid[data-kind="api"][data-idx="${idx}"]`) as HTMLInputElement)?.value || '');
       const cents = Number.isFinite(dollars) ? Math.round(dollars * 100) : '';
-      return {
+      const note = (document.querySelector(`.note[data-kind="api"][data-idx="${idx}"]`) as HTMLInputElement)?.value || '';
+      payload.push({
+        manual: 'no',
+        used: r.used ? 'yes' : 'no',
+        used_source: r.used_source || '',
         imei: r.imei,
         manufacturer: r.manufacturer || '',
         model_name: r.model_name || '',
@@ -137,13 +194,44 @@ document.getElementById('form').onsubmit = async (e) => {
         storage: r.storage || '',
         carrier: r.carrier || 'Unknown',
         icloud_lock: r.icloud_lock_on ? 'ON' : 'OFF',
+        condition_hint: r.condition_hint || '',
+        estimated_purchase_date: r.estimated_purchase_date || '',
+        quantity: 1,
+        unit_price_cents: cents,
+        line_total_cents: cents,
         suggested_price_cents: r.suggested_price_cents ?? '',
-        price_paid_cents: cents,
-        notes: (document.getElementById('note_'+idx)?.value || '').trim(),
-      };
-    })() : null).filter(Boolean);
+        notes: note.trim(),
+      });
+    });
 
-    const header = ['imei','manufacturer','model_name','model_code','device','color','storage','carrier','icloud_lock','suggested_price_cents','price_paid_cents','notes'];
+    // Manual rows
+    state.manual.forEach((r, idx) => {
+      const dollars = Number((document.querySelector(`.mpaid[data-idx="${idx}"]`) as HTMLInputElement)?.value || '');
+      const qty = Number((document.querySelector(`.mqty[data-idx="${idx}"]`) as HTMLInputElement)?.value || '1');
+      const cents = Number.isFinite(dollars) ? Math.round(dollars * 100) : 0;
+      payload.push({
+        manual: 'yes',
+        used: '', used_source: '',
+        imei: '',
+        manufacturer: '',
+        model_name: '',
+        model_code: '',
+        device: r.device || '',
+        color: r.color || '',
+        storage: r.storage || '',
+        carrier: r.carrier || 'Unknown',
+        icloud_lock: '',
+        condition_hint: '',
+        estimated_purchase_date: '',
+        quantity: qty,
+        unit_price_cents: cents,
+        line_total_cents: cents * Math.max(1, qty),
+        suggested_price_cents: '',
+        notes: (document.querySelector(`.mnote[data-idx="${idx}"]`) as HTMLInputElement)?.value || '',
+      });
+    });
+
+    const header = ['manual','used','used_source','imei','manufacturer','model_name','model_code','device','color','storage','carrier','icloud_lock','condition_hint','estimated_purchase_date','quantity','unit_price_cents','line_total_cents','suggested_price_cents','notes'];
     const csv = [header.join(',')].concat(payload.map(o =>
       header.map(k => JSON.stringify(String(o[k] ?? '')).replace(/^\uFEFF/, '')).join(',')
     )).join('\n');
@@ -153,6 +241,75 @@ document.getElementById('form').onsubmit = async (e) => {
     const a = Object.assign(document.createElement('a'), { href: url, download: 'intake_export.csv' });
     document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   };
+
+  computeTotals();
+}
+
+function computeTotals() {
+  // Sum API dollar inputs
+  let totalDollars = 0;
+  document.querySelectorAll('.paid').forEach(inp => {
+    const v = Number((inp as HTMLInputElement).value || '');
+    if (Number.isFinite(v)) totalDollars += v;
+  });
+  // Sum manual (unit * qty)
+  state.manual.forEach((r, idx) => {
+    const dollars = Number((document.querySelector(`.mpaid[data-idx="${idx}"]`) as HTMLInputElement)?.value || '');
+    const qty = Number((document.querySelector(`.mqty[data-idx="${idx}"]`) as HTMLInputElement)?.value || '1');
+    if (Number.isFinite(dollars) && Number.isFinite(qty)) totalDollars += dollars * Math.max(1, qty);
+  });
+
+  document.getElementById('totals').innerText = `Total: $${Math.round(totalDollars)}`;
+}
+
+document.getElementById('reset').onclick = () => {
+  document.getElementById('imeis').value = '';
+  state.rows = [];
+  state.manual = [];
+  document.getElementById('out').innerHTML = '';
+  document.getElementById('totals').innerText = '';
+};
+
+// Add manual item
+document.getElementById('addManual').onclick = (e) => {
+  e.preventDefault();
+  const device = (document.getElementById('m_device') as HTMLInputElement).value.trim();
+  const color = (document.getElementById('m_color') as HTMLInputElement).value.trim();
+  const storage = (document.getElementById('m_storage') as HTMLInputElement).value.trim();
+  const carrier = (document.getElementById('m_carrier') as HTMLSelectElement).value || 'Unknown';
+  const qty = Number((document.getElementById('m_qty') as HTMLInputElement).value || '1');
+  const unitPrice = Number((document.getElementById('m_price') as HTMLInputElement).value || '');
+  if (!device) return;
+  state.manual.push({ device, color, storage, carrier, qty: Math.max(1, qty), unitPrice: Number.isFinite(unitPrice) ? unitPrice : 0, notes: '' });
+  render();
+};
+
+document.getElementById('form').onsubmit = async (e) => {
+  e.preventDefault();
+  const raw = (document.getElementById('imeis') as HTMLTextAreaElement).value || '';
+  const imeis = raw.split(/[\s,;\n\r]+/).map(s=>s.trim()).filter(Boolean).slice(0,200);
+  if (!imeis.length) return;
+
+  // loading state
+  const loader = document.getElementById('loader');
+  const btn = document.getElementById('lookupBtn') as HTMLButtonElement;
+  loader.classList.add('show'); btn.disabled = true; btn.innerText = 'Looking up…';
+
+  try {
+    const res = await fetch('/api/intake', {
+      method: 'POST',
+      headers: { 'content-type':'application/json' },
+      body: JSON.stringify({ imeis })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Lookup failed');
+    state.rows = data.items || [];
+    render();
+  } catch (err) {
+    alert(String(err));
+  } finally {
+    loader.classList.remove('show'); btn.disabled = false; btn.innerText = 'Lookup & Price';
+  }
 };
 </script>
 </body>
