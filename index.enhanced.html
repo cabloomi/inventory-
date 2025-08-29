@@ -516,6 +516,30 @@
     .tab-content.active {
       display: block;
     }
+    
+    /* identifier validation highlight */
+    .bad { border-color:#b44 !important; box-shadow: 0 0 0 2px rgba(255,64,64,.18); }
+    
+    /* Compact manual entry */
+    .compact-manual-entry {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr 1fr 0.8fr 0.8fr;
+      gap: 10px;
+      align-items: center;
+    }
+    
+    @media (max-width: 1000px) {
+      .compact-manual-entry {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    
+    /* Warning tags */
+    .warning-tag {
+      display: inline-block;
+      margin-top: 4px;
+      margin-right: 4px;
+    }
   </style>
 <script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
 </head>
@@ -597,11 +621,9 @@
                   <th>Color</th>
                   <th>Storage</th>
                   <th>Carrier</th>
-                  <th>Base (¢)</th>
-                  <th>Suggested (¢)</th>
-                  <th>Confidence</th>
+                  <th>Suggested ($)</th>
                   <th>Condition</th>
-                  <th>Price Paid (¢)</th>
+                  <th>Price Paid ($)</th>
                   <th>Notes</th>
                 </tr>
               </thead>
@@ -613,26 +635,24 @@
         </div>
       </div>
       
-      <!-- Manual Item Entry -->
+      <!-- Manual Item Entry - Compact Version -->
       <div class="card">
         <div class="card-header">
           <h2>Add Manual Item</h2>
         </div>
         
-        <div class="row">
-          <div class="typeahead" style="flex: 3 1 320px;">
-            <input type="text" id="m_device" placeholder="Start typing (e.g., AirPods Pro 2, iPhone 13 Mini 128GB)" autocomplete="off" />
+        <div class="compact-manual-entry">
+          <div class="typeahead">
+            <input type="text" id="m_device" placeholder="Device (e.g., iPhone 13 Mini 128GB)" autocomplete="off" />
             <div id="m_suggest" class="suggestions" style="display:none;"></div>
           </div>
 
-          <!-- Color dynamic search -->
-          <div class="typeahead" style="flex: 2 1 220px;">
-            <input type="text" id="m_color" placeholder="Color (type to search)" autocomplete="off" />
+          <div class="typeahead">
+            <input type="text" id="m_color" placeholder="Color" autocomplete="off" />
             <div id="m_color_suggest" class="suggestions" style="display:none;"></div>
           </div>
 
-          <!-- Storage dropdown (narrow) -->
-          <select id="m_storage" style="width: 120px;">
+          <select id="m_storage">
             <option value="">Storage</option>
             <option>64GB</option>
             <option>128GB</option>
@@ -644,11 +664,19 @@
 
           <select id="m_carrier">
             <option value="Unknown">Carrier</option>
-            <option>Unlocked</option><option>Verizon</option><option>T-Mobile</option><option>AT&T</option>
-            <option>Xfinity</option><option>Spectrum</option><option>US Cellular</option><option>Cricket</option>
+            <option>Unlocked</option>
+            <option>Verizon</option>
+            <option>T-Mobile</option>
+            <option>AT&T</option>
+            <option>Xfinity</option>
+            <option>Spectrum</option>
+            <option>Boost</option>
+            <option>Cricket</option>
+            <option>US Cellular</option>
           </select>
-          <input type="number" id="m_qty" placeholder="Qty" min="1" step="1" value="1" style="width:90px" />
-          <input type="number" id="m_price" placeholder="Unit Price ($)" min="0" step="1" style="width:140px" />
+          
+          <input type="number" id="m_qty" placeholder="Qty" min="1" step="1" value="1" />
+          <input type="number" id="m_price" placeholder="Price ($)" min="0" step="1" />
           <button class="btn" id="addManual">Add</button>
         </div>
       </div>
@@ -708,6 +736,7 @@
                   <th>IMEI</th>
                   <th>Device</th>
                   <th>Condition</th>
+                  <th>Carrier</th>
                   <th>Price Paid</th>
                   <th>Status</th>
                   <th>Added</th>
@@ -717,7 +746,7 @@
               <tbody id="inventory-body">
                 <!-- Inventory items will be dynamically inserted here -->
                 <tr>
-                  <td colspan="8" style="text-align: center; padding: 30px;">
+                  <td colspan="9" style="text-align: center; padding: 30px;">
                     <i class="fas fa-box-open" style="font-size: 24px; margin-bottom: 10px; display: block; opacity: 0.5;"></i>
                     No inventory items found.
                   </td>
@@ -1005,6 +1034,12 @@
       "Titanium Black","Titanium Gray","Titanium Violet","Titanium Yellow","Titanium Blue","Titanium Green","Titanium Orange"
     ])).sort((a,b)=>a.localeCompare(b));
 
+    // Carrier list
+    const CARRIER_LIST = [
+      "Unknown", "Unlocked", "Verizon", "T-Mobile", "AT&T", 
+      "Xfinity", "Spectrum", "Boost", "Cricket", "US Cellular"
+    ];
+
     // Helper functions
     function formatMoney(cents) {
       return '$' + (cents / 100).toFixed(2);
@@ -1057,6 +1092,37 @@
         hour12: true,
         timeZone: 'America/New_York' // Eastern Time
       });
+    }
+
+    // Calculate days since purchase
+    function getDaysSincePurchase(purchaseDate) {
+      if (!purchaseDate) return null;
+      
+      const purchase = new Date(purchaseDate);
+      const today = new Date();
+      const diffTime = Math.abs(today - purchase);
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+
+    // Check device condition based on purchase date
+    function checkDeviceCondition(purchaseDate) {
+      const days = getDaysSincePurchase(purchaseDate);
+      
+      if (days === null) return { condition: null, warning: null };
+      
+      if (days > 45) {
+        return { 
+          condition: "assume_used", 
+          warning: '<span class="tag error warning-tag">Assume Used</span>' 
+        };
+      } else if (days > 14) {
+        return { 
+          condition: "check_for_use", 
+          warning: '<span class="tag warning warning-tag">Check for signs of use</span>' 
+        };
+      }
+      
+      return { condition: null, warning: null };
     }
 
     // Tab switching
@@ -1169,7 +1235,7 @@
       function renderList(arr) {
         if (!arr.length) { hide(); return; }
         var html = arr.map(function(r, i) {
-          return '<div class="sug-item" data-idx="'+i+'">'
+          return '<div class="sug-item" data-idx="'+i+'">' 
             + '<div class="sug-left"><div class="sug-device">'+ r.device +'</div><div class="sug-sheet">'+ (r.sheet || '') +'</div></div>'
             + '<div class="sug-price">$'+ (r.price_dollars || 0) +'</div></div>';
         }).join('');
@@ -1445,7 +1511,7 @@
           const errorRow = document.createElement('tr');
           errorRow.innerHTML = `
             <td></td>
-            <td colspan="11" class="error">
+            <td colspan="9" class="error">
               <i class="fas fa-exclamation-circle"></i>
               IMEI ${escapeHtml(r.imei)} → ${escapeHtml(r.error || 'error')}
             </td>
@@ -1454,8 +1520,19 @@
           return;
         }
         
-        const confidence = (r.confidence || 0) * 100;
-        const confidenceClass = confidence > 80 ? 'success' : (confidence > 50 ? 'warning' : 'error');
+        // Check device condition based on purchase date
+        const conditionCheck = checkDeviceCondition(r.estimated_purchase_date);
+        
+        // Add warning for iCloud lock
+        const iCloudWarning = r.icloud_lock_on ? 
+          '<span class="tag error warning-tag">iCloud Lock: ON</span>' : '';
+        
+        // Combine all warnings
+        const warnings = (conditionCheck.warning || '') + iCloudWarning;
+        
+        // Convert cents to dollars for display
+        const suggestedPriceDollars = r.suggested_price_cents ? 
+          (r.suggested_price_cents / 100).toFixed(2) : '';
         
         const row = document.createElement('tr');
         row.className = 'result-row';
@@ -1466,17 +1543,28 @@
             <input type="checkbox" class="select-item" data-idx="${idx}">
           </td>
           <td><code>${escapeHtml(r.imei)}</code></td>
-          <td>${escapeHtml(r.device_display || ((r.manufacturer || '') + ' ' + (r.model_name || '')))}</td>
+          <td>
+            ${escapeHtml(r.device_display || ((r.manufacturer || '') + ' ' + (r.model_name || '')))}
+            ${warnings}
+            ${r.estimated_purchase_date ? 
+              `<div class="muted">Est. Purchase: ${r.estimated_purchase_date} 
+               ${typeof r.estimated_purchase_age_days === 'number' ? 
+                 `(${r.estimated_purchase_age_days}d ago)` : ''}
+               </div>` : ''}
+          </td>
           <td>${escapeHtml(r.color || '')}</td>
           <td>${escapeHtml(r.storage || '')}</td>
-          <td><span class="tag">${escapeHtml(r.carrier || 'Unknown')}</span></td>
-          <td class="right">${escapeHtml(String(r.base_price_cents || ''))}</td>
-          <td class="right"><b>${escapeHtml(String(r.suggested_price_cents || ''))}</b></td>
           <td>
-            <span class="tag ${confidenceClass}">${confidence.toFixed(1)}%</span>
+            <select class="carrier-select" data-idx="${idx}">
+              ${CARRIER_LIST.map(carrier => 
+                `<option value="${carrier}" ${(r.carrier || 'Unknown') === carrier ? 'selected' : ''}>${carrier}</option>`
+              ).join('')}
+            </select>
           </td>
+          <td class="right"><b>$${escapeHtml(suggestedPriceDollars)}</b></td>
           <td>
             <select class="condition-select" data-idx="${idx}">
+              <option value="NIB">NIB - New In Box</option>
               <option value="A">A - Like New</option>
               <option value="B" selected>B - Good</option>
               <option value="C">C - Fair</option>
@@ -1484,7 +1572,7 @@
             </select>
           </td>
           <td>
-            <input type="number" class="price-paid" data-idx="${idx}" placeholder="${escapeHtml(String(r.suggested_price_cents || ''))}" value="${escapeHtml(String(r.suggested_price_cents || ''))}">
+            <input type="number" class="price-paid" data-idx="${idx}" placeholder="$${escapeHtml(suggestedPriceDollars)}" value="${escapeHtml(suggestedPriceDollars)}" step="0.01">
           </td>
           <td>
             <input type="text" class="notes" data-idx="${idx}" placeholder="Optional notes">
@@ -1503,6 +1591,8 @@
           <input type="hidden" class="model-code" data-idx="${idx}" value="${escapeHtml(String(r.model_code || ''))}">
           <input type="hidden" class="device-display" data-idx="${idx}" value="${escapeHtml(String(r.device_display || ''))}">
           <input type="hidden" class="suggested-price" data-idx="${idx}" value="${escapeHtml(String(r.suggested_price_cents || ''))}">
+          <input type="hidden" class="condition-hint" data-idx="${idx}" value="${escapeHtml(String(conditionCheck.condition || ''))}">
+          <input type="hidden" class="icloud-lock" data-idx="${idx}" value="${r.icloud_lock_on ? 'ON' : 'OFF'}">
         `;
         tbody.appendChild(hiddenFields);
       });
@@ -1513,6 +1603,31 @@
       selectAllCheckbox.addEventListener('change', function() {
         document.querySelectorAll('.select-item').forEach(checkbox => {
           checkbox.checked = this.checked;
+        });
+      });
+      
+      // Update price paid when condition changes
+      document.querySelectorAll('.condition-select').forEach(select => {
+        select.addEventListener('change', function() {
+          const idx = this.getAttribute('data-idx');
+          const pricePaidInput = document.querySelector(`.price-paid[data-idx="${idx}"]`);
+          const suggestedPrice = parseFloat(document.querySelector(`.suggested-price[data-idx="${idx}"]`).value) / 100;
+          
+          // Adjust price based on condition
+          let adjustedPrice = suggestedPrice;
+          const condition = this.value;
+          
+          if (condition === 'NIB') {
+            adjustedPrice = suggestedPrice * 1.2; // 20% premium for NIB
+          } else if (condition === 'C') {
+            adjustedPrice = suggestedPrice * 0.8; // 20% discount for Fair
+          } else if (condition === 'D') {
+            adjustedPrice = suggestedPrice * 0.6; // 40% discount for Poor
+          }
+          
+          if (pricePaidInput && !isNaN(adjustedPrice)) {
+            pricePaidInput.value = adjustedPrice.toFixed(2);
+          }
         });
       });
     }
@@ -1593,7 +1708,7 @@
           + '<td>' + escapeHtml(r.storage || '') + '</td>'
           + '<td><span class="tag">' + escapeHtml(r.carrier || 'Unknown') + '</span></td>'
           + '<td><div class="muted">—</div></td>'
-          + '<td class="right"><input type="number" class="mpaid" data-idx="' + idx + '" value="' + escapeHtml(String(r.unitPrice || '')) + '" step="1" min="0" /></td>'
+          + '<td class="right"><input type="number" class="mpaid" data-idx="' + idx + '" value="' + escapeHtml(String(r.unitPrice || '')) + '" step="0.01" min="0" /></td>'
           + '<td class="right">1</td>'
           + '<td><input type="text" class="mnote" data-idx="' + idx + '" value="' + escapeHtml(r.notes || '') + '" /></td>'
           + '</tr>');
@@ -1701,7 +1816,7 @@
       // Add API rows
       document.querySelectorAll('.price-paid').forEach(inp => {
         const v = Number(inp.value || '');
-        if (isFinite(v)) totalDollars += v / 100; // Convert cents to dollars
+        if (isFinite(v)) totalDollars += v;
       });
       
       // Add manual rows
@@ -1710,7 +1825,7 @@
         if (isFinite(v)) totalDollars += v;
       });
       
-      document.getElementById('totals').innerText = 'Total: $' + Math.round(totalDollars);
+      document.getElementById('totals').innerText = 'Total: $' + totalDollars.toFixed(2);
     }
 
     // Download CSV
@@ -1723,8 +1838,13 @@
         
         const paidEl = document.querySelector(`.price-paid[data-idx="${idx}"]`);
         const noteEl = document.querySelector(`.notes[data-idx="${idx}"]`);
+        const carrierEl = document.querySelector(`.carrier-select[data-idx="${idx}"]`);
+        const conditionEl = document.querySelector(`.condition-select[data-idx="${idx}"]`);
+        
         const dollars = Number((paidEl && paidEl.value) ? paidEl.value : '');
-        const cents = isFinite(dollars) ? Math.round(dollars) : ''; // Already in cents
+        const cents = isFinite(dollars) ? Math.round(dollars * 100) : ''; // Convert to cents
+        const carrier = carrierEl ? carrierEl.value : (r.carrier || 'Unknown');
+        const condition = conditionEl ? conditionEl.value : 'B';
         
         payload.push({
           manual: 'no',
@@ -1737,8 +1857,9 @@
           device: r.device_display || '',
           color: r.color || '',
           storage: r.storage || '',
-          carrier: r.carrier || 'Unknown',
+          carrier: carrier,
           icloud_lock: r.icloud_lock_on ? 'ON' : 'OFF',
+          condition: condition,
           condition_hint: r.condition_hint || '',
           estimated_purchase_date: r.estimated_purchase_date || '',
           quantity: 1,
@@ -1770,6 +1891,7 @@
           storage: r.storage || '',
           carrier: r.carrier || 'Unknown',
           icloud_lock: '',
+          condition: 'B',
           condition_hint: '',
           estimated_purchase_date: '',
           quantity: 1,
@@ -1780,7 +1902,7 @@
         });
       });
       
-      const header = ['manual','used','used_source','identifier','manufacturer','model_name','model_code','device','color','storage','carrier','icloud_lock','condition_hint','estimated_purchase_date','quantity','unit_price_cents','line_total_cents','suggested_price_cents','notes'];
+      const header = ['manual','used','used_source','identifier','manufacturer','model_name','model_code','device','color','storage','carrier','icloud_lock','condition','condition_hint','estimated_purchase_date','quantity','unit_price_cents','line_total_cents','suggested_price_cents','notes'];
       const lines = [header.join(',')];
       
       payload.forEach(o => {
@@ -1823,16 +1945,28 @@
       selectedItems.forEach(checkbox => {
         const idx = checkbox.dataset.idx;
         
+        const paidEl = document.querySelector(`.price-paid[data-idx="${idx}"]`);
+        const noteEl = document.querySelector(`.notes[data-idx="${idx}"]`);
+        const carrierEl = document.querySelector(`.carrier-select[data-idx="${idx}"]`);
+        const conditionEl = document.querySelector(`.condition-select[data-idx="${idx}"]`);
+        
+        const dollars = Number((paidEl && paidEl.value) ? paidEl.value : '');
+        const cents = isFinite(dollars) ? Math.round(dollars * 100) : 0;
+        const carrier = carrierEl ? carrierEl.value : 'Unknown';
+        const condition = conditionEl ? conditionEl.value : 'B';
+        
         payload.push({
           imei: document.querySelector(`.imei[data-idx="${idx}"]`).value,
           manufacturer: document.querySelector(`.manufacturer[data-idx="${idx}"]`).value,
           model_name: document.querySelector(`.model-name[data-idx="${idx}"]`).value,
           model_code: document.querySelector(`.model-code[data-idx="${idx}"]`).value,
           device_display: document.querySelector(`.device-display[data-idx="${idx}"]`).value,
-          condition: document.querySelector(`.condition-select[data-idx="${idx}"]`).value,
-          price_paid_cents: document.querySelector(`.price-paid[data-idx="${idx}"]`).value,
+          condition: condition,
+          carrier: carrier,
+          price_paid_cents: cents,
           suggested_price_cents: document.querySelector(`.suggested-price[data-idx="${idx}"]`).value,
-          notes: document.querySelector(`.notes[data-idx="${idx}"]`).value
+          notes: noteEl ? noteEl.value : '',
+          icloud_lock_on: document.querySelector(`.icloud-lock[data-idx="${idx}"]`).value === 'ON'
         });
       });
       
@@ -1851,7 +1985,8 @@
             imei: item.imei,
             device_display: item.device_display,
             condition: item.condition,
-            price_paid_cents: parseInt(item.price_paid_cents),
+            carrier: item.carrier,
+            price_paid_cents: item.price_paid_cents,
             status: 'in_stock',
             location: 'store',
             created_at: new Date().toISOString()
@@ -1957,7 +2092,7 @@
       if (paginatedItems.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="8" style="text-align: center; padding: 30px;">
+            <td colspan="9" style="text-align: center; padding: 30px;">
               <i class="fas fa-box-open" style="font-size: 24px; margin-bottom: 10px; display: block; opacity: 0.5;"></i>
               No inventory items found.
             </td>
@@ -1986,8 +2121,9 @@
           </td>
           <td><code>${escapeHtml(item.imei)}</code></td>
           <td>${escapeHtml(item.device_display)}</td>
-          <td>${escapeHtml(item.condition)}</td>
-          <td>${formatMoney(item.price_paid_cents)}</td>
+          <td>${escapeHtml(item.condition || 'B')}</td>
+          <td>${escapeHtml(item.carrier || 'Unknown')}</td>
+          <td>$${(item.price_paid_cents / 100).toFixed(2)}</td>
           <td>${statusTag}</td>
           <td>${formatTimestamp(item.created_at)}</td>
           <td>
