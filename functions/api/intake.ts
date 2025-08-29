@@ -36,13 +36,13 @@ function parseCSV(text: string): Record<string, string>[] {
   });
 }
 
-/* ---------------- Text & match helpers ---------------- */
+/* ---------------- Text helpers ---------------- */
 function norm(s: string): string {
   return s.toLowerCase().replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
 }
 function lev(a: string, b: string): number {
   const m = a.length, n = b.length;
-  const dp = Array.from({length: m+1}, (_, i)=> Array(n+1).fill(0));
+  const dp = Array.from({length: m+1}, () => Array(n+1).fill(0));
   for (let i=0;i<=m;i++) dp[i][0] = i;
   for (let j=0;j<=n;j++) dp[0][j] = j;
   for (let i=1;i<=m;i++) for (let j=1;j<=n;j++) {
@@ -88,7 +88,7 @@ function parseModelDescription(desc: string | null) {
   return { deviceName, color, storageGb };
 }
 
-/* --------- Signature parsing (generation/tier for iPhone) --------- */
+/* --------- iPhone signature parsing --------- */
 type Tier = "base" | "plus" | "pro" | "promax" | "e" | null;
 
 function parseIphoneSignature(text: string | null) {
@@ -116,7 +116,7 @@ function parseIphoneSignature(text: string | null) {
 
 /* ---------------- Carrier & iCloud ---------------- */
 function parseCarrier(obj: Record<string, any>): string | null {
-  const preferred = ["carrier","network","locked carrier","original carrier","sold by","sold to","activation policy","sim"];
+  const preferred = ["carrier","network","locked carrier","original carrier","sold by","sold to","activation policy","sim","policy"];
   const known = [
     { key: "verizon", label: "Verizon" },
     { key: "t-mobile", label: "T-Mobile" },
@@ -128,13 +128,14 @@ function parseCarrier(obj: Record<string, any>): string | null {
     { key: "us cellular", label: "US Cellular" },
     { key: "u.s. cellular", label: "US Cellular" },
     { key: "cricket", label: "Cricket" },
-    { key: "unlocked", label: "Unlocked" }
+    { key: "unlocked", label: "Unlocked" },
+    { key: "factory unlocked", label: "Unlocked" },
   ];
   const entries = Object.entries(obj || {});
   for (const [k,v] of entries) {
     const kk = String(k).toLowerCase();
     const vv = String(v ?? "").toLowerCase();
-    if (kk.includes("sim") && kk.includes("lock") && vv.includes("unlock")) return "Unlocked";
+    if ((kk.includes("sim") || kk.includes("lock")) && vv.includes("unlock")) return "Unlocked";
   }
   for (const [k,v] of entries) {
     const kk = String(k).toLowerCase();
@@ -167,7 +168,7 @@ function parseDateLoose(s: string): Date | null {
 
   const m = t.match(/^(\d{1,4})[\/\-.](\d{1,2})[\/\-.](\d{1,4})$/);
   if (m) {
-    let a = parseInt(m[1],10), b = parseInt(m[2],10), c = parseInt(m[3],10);
+    const a = parseInt(m[1],10), b = parseInt(m[2],10), c = parseInt(m[3],10);
     if (m[1].length === 4) return new Date(a, b-1, c);             // YYYY-M-D
     if (m[3].length === 4) {                                       // M/D/Y or D/M/Y
       const Y = c;
@@ -180,22 +181,17 @@ function extractEstimatedPurchaseDate(obj: Record<string, any>) {
   let raw: string | null = null;
   for (const [k,v] of Object.entries(obj || {})) {
     const kk = String(k).toLowerCase().replace(/[:\s]+/g,' ').trim();
-    if (kk.includes("estimated purchase date")) {
-      raw = String(v ?? "").trim();
-      break;
-    }
+    if (kk.includes("estimated purchase date")) { raw = String(v ?? "").trim(); break; }
   }
   if (!raw) return { iso: null as string|null, ageDays: null as number|null, hint: null as "check_for_use"|"assume_used"|null };
 
   const dt = parseDateLoose(raw);
   if (!dt) return { iso: null, ageDays: null, hint: null };
 
-  const now = Date.now();
-  const age = Math.floor((now - dt.getTime()) / 86400000);
+  const age = Math.floor((Date.now() - dt.getTime()) / 86400000);
   let hint: "check_for_use"|"assume_used"|null = null;
   if (age > 45) hint = "assume_used"; else if (age > 14) hint = "check_for_use";
-  const iso = dt.toISOString().slice(0,10);
-  return { iso, ageDays: age, hint };
+  return { iso: dt.toISOString().slice(0,10), ageDays: age, hint };
 }
 
 /* ---------------- Sickw fetch ---------------- */
@@ -240,33 +236,83 @@ async function sickwFetch(env: Env, imei: string) {
     sig, // {gen, tier, storage, color}
     estimated_purchase_date: purch.iso,
     estimated_purchase_age_days: purch.ageDays,
-    condition_hint: purch.hint // "check_for_use" | "assume_used" | null
+    condition_hint: purch.hint
   };
 }
 
-/* ---------------- Sheet preference (brand + used/new) ---------------- */
+/* ---------------- Sheet selection (PRIORITIZED) ---------------- */
 function isWatchOrAirpodsSheet(sheetName?: string) {
   if (!sheetName) return false;
   const s = sheetName.toLowerCase();
-  return s.includes("watch") || s.includes("airpod") || s.includes("airpods");
+  return s.includes("watch") || s.includes("airpod");
 }
 
-function sheetPatternsFor(brand: "apple"|"samsung"|"other", isUsed: boolean, carrier: string) {
+/** Return pattern GROUPS in priority order */
+function sheetPatternGroupsFor(brand: "apple"|"samsung"|"other", isUsed: boolean, carrier: string): RegExp[][] {
   const unlocked = carrier.toLowerCase() === "unlocked";
+
   if (brand === "apple") {
     if (isUsed) {
-      return [/iphone.*used/i, /used.*iphone/i];           // USED iPhones
+      if (unlocked) {
+        return [
+          [/iphone.*used.*unlock/i, /unlock.*iphone.*used/i, /used.*iphone.*unlock/i], // USED UNLOCKED
+          [/iphone.*used(?!.*unlock)/i],                                              // USED generic/locked
+          [/iphone.*used/i]
+        ];
+      } else {
+        return [
+          [/iphone.*used(?!.*unlock)/i], // USED LOCKED (prefer)
+          [/iphone.*used/i]
+        ];
+      }
     } else {
-      return unlocked ? [/iphone.*unlock(?!.*used)/i]      // New + Unlocked iPhones
-                      : [/^iphone(?!.*unlock)(?!.*used)/i];// New + Locked iPhones
+      if (unlocked) {
+        return [
+          [/iphone.*unlock(?!.*used)/i],          // NEW UNLOCKED
+          [/^iphone(?!.*unlock)(?!.*used)/i]      // fallback: non-unlocked, non-used
+        ];
+      } else {
+        return [
+          [/^iphone(?!.*unlock)(?!.*used)/i],     // NEW LOCKED
+          [/iphone(?!.*used)/i]
+        ];
+      }
     }
   }
+
   if (brand === "samsung") {
-    if (isUsed) return [/samsung.*used/i, /used.*samsung/i];
-    return [/^samsung(?!.*used)/i];
+    if (isUsed) {
+      if (unlocked) {
+        return [
+          [/samsung.*used.*unlock/i, /unlock.*samsung.*used/i],
+          [/samsung.*used(?!.*unlock)/i],
+          [/samsung.*used/i]
+        ];
+      } else {
+        return [
+          [/samsung.*used(?!.*unlock)/i],
+          [/samsung.*used/i]
+        ];
+      }
+    } else {
+      if (unlocked) {
+        return [
+          [/samsung.*unlock(?!.*used)/i],
+          [/^samsung(?!.*used)/i]
+        ];
+      } else {
+        return [
+          [/^samsung(?!.*unlock)(?!.*used)/i],
+          [/^samsung(?!.*used)/i]
+        ];
+      }
+    }
   }
-  // fallback
-  return isUsed ? [/used/i] : [/.*/i];
+
+  // Fallback brand
+  return isUsed
+    ? [[/used.*unlocked/i], [/used(?!.*unlock)/i], [/used/i]]
+    : [[/unlock(?!.*used)/i], [/^(?!.*used).*/i]];
 }
 
 /* ---------------- Price matching ---------------- */
@@ -282,9 +328,22 @@ function scoreMatchStrict(target: ReturnType<typeof parseIphoneSignature>, cand:
 function scoreMatchRelaxed(target: ReturnType<typeof parseIphoneSignature>, cand: ReturnType<typeof parseIphoneSignature>, nameScore: number) {
   if (target.gen && cand.gen && target.gen !== cand.gen) return -Infinity;
   let score = 0.3 * nameScore;
-  if (target.tier && cand.tier && target.tier === cand.tier) score += 0.2;
+  if (target.tier && cand.tier && target.tier === target.tier) score += 0.2;
   if (target.storage && cand.storage && target.storage === cand.storage) score += 0.2;
   return score;
+}
+
+function pickCandidatesByPriority(priceRows: Record<string,string>[], patternGroups: RegExp[][]) {
+  for (const group of patternGroups) {
+    const subset = priceRows.filter(r => {
+      const sheet = (r.sheet || "");
+      if (isWatchOrAirpodsSheet(sheet)) return false;
+      return group.some(re => re.test(sheet));
+    });
+    if (subset.length) return subset;
+  }
+  // fallback: anything non-watch/airpods
+  return priceRows.filter(r => !isWatchOrAirpodsSheet(r.sheet));
 }
 
 function bestPriceMatchSmart(
@@ -296,18 +355,12 @@ function bestPriceMatchSmart(
   targetSig: ReturnType<typeof parseIphoneSignature>,
   priceRows: Record<string,string>[]
 ) {
-  const patterns = sheetPatternsFor(brand, isUsed, carrier);
-  const eligible = priceRows.filter(r => {
-    const sheet = (r.sheet || "");
-    if (isWatchOrAirpodsSheet(sheet)) return false;
-    return patterns.some(re => re.test(sheet));
-  });
-  const candidates = eligible.length ? eligible : priceRows.filter(r => !isWatchOrAirpodsSheet(r.sheet));
-
+  const patternGroups = sheetPatternGroupsFor(brand, isUsed, carrier);
+  const candidates = pickCandidatesByPriority(priceRows, patternGroups);
   const targetNorm = norm(devName);
 
   if (brand === "apple") {
-    // strict
+    // strict (same gen + same tier)
     let best: Record<string,string> | null = null;
     let bestScore = -Infinity;
     for (const row of candidates) {
@@ -424,12 +477,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       return new Response(JSON.stringify({ error: "Provide { imeis: [...] }" }), { status: 400, headers: { ...cors, "content-type":"application/json" }});
     }
 
-    // Detect trailing 'u' = used override; do NOT send 'u' to Sickw
+    // Detect trailing 'u' = used; strip before Sickw lookup
     const parsed = imeisIn.slice(0, 200).map(raw => {
       const t = String(raw).trim();
       const usedOverride = /u$/i.test(t);
       const trimmed = usedOverride ? t.slice(0, -1).trim() : t;
-      const imei = trimmed.replace(/\s+/g,''); // keep digits straight
+      const imei = trimmed.replace(/\s+/g,'');
       return { raw: t, imei, usedOverride };
     });
 
@@ -449,9 +502,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         const brand: "apple"|"samsung"|"other" =
           man.includes("apple") ? "apple" : man.includes("samsung") ? "samsung" : "other";
 
-        // Determine used flag:
-        // - override if IMEI ended with 'u'
-        // - OR assume used if Estimated Purchase Date > 45d
+        // Used?
         const isUsed = rec.usedOverride || dev.condition_hint === "assume_used";
 
         const pricing = bestPriceMatchSmart(
@@ -483,14 +534,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
           confidence: pricing.confidence || 0,
           estimated_purchase_date: dev.estimated_purchase_date,
           estimated_purchase_age_days: dev.estimated_purchase_age_days,
-          condition_hint: dev.condition_hint,   // "check_for_use" | "assume_used" | null
-          used: isUsed,                         // NEW: used flag (via 'u' or date)
+          condition_hint: dev.condition_hint,
+          used: isUsed,
           used_source: rec.usedOverride ? "flag" : (dev.condition_hint === "assume_used" ? "date" : "")
         });
       } catch (e: any) {
         items.push({ ok: false, imei: rec.imei, error: String(e?.message || e) });
       }
-      await new Promise(r => setTimeout(r, 160));
+      await new Promise(r => setTimeout(r, 150));
     }
 
     return new Response(JSON.stringify({
