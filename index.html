@@ -45,6 +45,9 @@
   .sug-price { font-weight: 700; }
   /* identifier validation highlight */
   .bad { border-color:#b44 !important; box-shadow: 0 0 0 2px rgba(255,64,64,.18); }
+
+  /* Hide the 'Matched (Sheet)' column by default */
+  th:nth-child(6), td:nth-child(6) { display: none; }
 </style>
 </head>
 <body>
@@ -307,6 +310,149 @@ const COLOR_LIST = Array.from(new Set([
   input.addEventListener('blur', function() { setTimeout(hide, 120); });
 })();
 
+
+/* ---------- Helpers for editable API rows ---------- */
+function ensureColorDatalist() {
+  if (!document.getElementById('colorlist')) {
+    var dl = document.createElement('datalist');
+    dl.id = 'colorlist';
+    (COLOR_LIST || []).forEach(function(c){
+      var opt = document.createElement('option');
+      opt.value = c;
+      dl.appendChild(opt);
+    });
+    document.body.appendChild(dl);
+  }
+}
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+function parseColorAndStorageFromText(deviceText) {
+  var upper = (deviceText || '').toUpperCase();
+  var storage = null;
+  var m = upper.match(/(64|128|256|512|1024|2048)\s*GB\b|\b(1|2)\s*TB\b/);
+  if (m) {
+    if (m[1]) storage = m[1] + "GB";
+    else if (m[2]) storage = m[2] + "TB";
+  }
+  var color = null;
+  for (var i=0;i<COLOR_LIST.length;i++) {
+    var c = COLOR_LIST[i];
+    var re = new RegExp('(^|\\s)'+c.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')+'(\\s|$)', 'i');
+    if (re.test(deviceText)) { color = c; break; }
+  }
+  return { color: color, storage: storage };
+}
+var STORAGE_OPTIONS = ["","64GB","128GB","256GB","512GB","1TB","2TB"];
+var CARRIER_OPTIONS = ["Unknown","Unlocked","Verizon","T-Mobile","AT&T","Xfinity","Spectrum","US Cellular","Cricket"];
+
+function makeEditableRows() {
+  ensureColorDatalist();
+  // For each API row (identified by the .paid[data-kind="api"] input), swap read-only cells for inputs/selects.
+  var paidInputs = Array.prototype.slice.call(document.querySelectorAll('.paid[data-kind="api"]'));
+  paidInputs.forEach(function(inp){
+    var idx = Number(inp.getAttribute('data-idx'));
+    if (!isFinite(idx) || !state.rows || !state.rows[idx] || !state.rows[idx].ok) return;
+    var r = state.rows[idx];
+    var tr = inp.closest('tr');
+    if (!tr) return;
+    var tds = tr.querySelectorAll('td');
+    if (!tds || tds.length < 9) return;
+
+    // Cells: 0 Identifier | 1 Device | 2 Color | 3 Storage | 4 Carrier | 5 Matched (hidden) | 6 Price | 7 Qty | 8 Notes
+
+    // Device cell: text input + original warning tags
+    var deviceCell = tds[1];
+    var display = (r.device_display || ((r.manufacturer || '') + ' ' + (r.model_name || ''))).trim();
+    var warnIcloud = r.icloud_lock_on ? '<div class="tag red">iCloud Lock: ON</div>' : '';
+    var hint = r.condition_hint === 'assume_used' ? '<div class="tag red">Assume Used</div>'
+              : (r.condition_hint === 'check_for_use' ? '<div class="tag yellow">Check for signs of use</div>' : '');
+    var usedTag = r.used ? '<div class="tag green">Used</div>' : '';
+    var purchInfo = r.estimated_purchase_date ? ('<div class="muted">Est. Purchase: ' + r.estimated_purchase_date + (typeof r.estimated_purchase_age_days === 'number' ? ' (' + r.estimated_purchase_age_days + 'd ago)' : '') + '</div>') : '';
+    deviceCell.innerHTML = '<input type="text" class="adev" data-idx="'+idx+'" value="'+escapeHtml(display)+'" style="width:100%;margin-bottom:6px" />'
+                         + warnIcloud + hint + usedTag + purchInfo;
+
+    // Color cell: input with datalist
+    var colorCell = tds[2];
+    var curColor = r.color || '';
+    colorCell.innerHTML = '<input type="text" class="acolor" list="colorlist" data-idx="'+idx+'" value="'+escapeHtml(curColor)+'" style="width:100%" />';
+
+    // Storage cell: select
+    var storageCell = tds[3];
+    var curStorage = (r.storage || '').toUpperCase();
+    var storageHtml = '<select class="astorage" data-idx="'+idx+'" style="width:100%;">';
+    STORAGE_OPTIONS.forEach(function(opt){
+      var sel = (opt.toUpperCase() === curStorage) ? ' selected' : '';
+      storageHtml += '<option'+sel+'>' + opt + '</option>';
+    });
+    storageHtml += '</select>';
+    storageCell.innerHTML = storageHtml;
+
+    // Carrier cell: select
+    var carrierCell = tds[4];
+    var curCarrier = (r.carrier || 'Unknown');
+    var carrierHtml = '<select class="acarrier" data-idx="'+idx+'" style="width:100%;">';
+    CARRIER_OPTIONS.forEach(function(opt){
+      var sel = (opt === curCarrier) ? ' selected' : '';
+      carrierHtml += '<option'+sel+'>' + opt + '</option>';
+    });
+    carrierHtml += '</select>';
+    carrierCell.innerHTML = carrierHtml;
+  });
+
+  // Wire listeners (update state.rows live)
+  Array.prototype.forEach.call(document.querySelectorAll('.adev'), function(el){
+    el.addEventListener('change', function(){
+      var idx = Number(el.getAttribute('data-idx'));
+      if (!isFinite(idx) || !state.rows[idx]) return;
+      state.rows[idx].device_display = el.value.trim();
+
+      // Try to auto-fill color/storage if empty
+      var parsed = parseColorAndStorageFromText(el.value || '');
+      var colorInput = document.querySelector('.acolor[data-idx="'+idx+'"]');
+      var storageSelect = document.querySelector('.astorage[data-idx="'+idx+'"]');
+      if (parsed.color && (!state.rows[idx].color || !(state.rows[idx].color||'').trim())) {
+        state.rows[idx].color = parsed.color;
+        if (colorInput) colorInput.value = parsed.color;
+      }
+      if (parsed.storage && (!state.rows[idx].storage || !(state.rows[idx].storage||'').trim())) {
+        state.rows[idx].storage = parsed.storage;
+        if (storageSelect) {
+          Array.prototype.forEach.call(storageSelect.options, function(o, i){
+            if ((o.text || o.value).toUpperCase() === parsed.storage.toUpperCase()) storageSelect.selectedIndex = i;
+          });
+        }
+      }
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.acolor'), function(el){
+    el.addEventListener('change', function(){
+      var idx = Number(el.getAttribute('data-idx'));
+      if (!isFinite(idx) || !state.rows[idx]) return;
+      state.rows[idx].color = el.value.trim();
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.astorage'), function(el){
+    el.addEventListener('change', function(){
+      var idx = Number(el.getAttribute('data-idx'));
+      if (!isFinite(idx) || !state.rows[idx]) return;
+      state.rows[idx].storage = el.value.trim();
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.acarrier'), function(el){
+    el.addEventListener('change', function(){
+      var idx = Number(el.getAttribute('data-idx'));
+      if (!isFinite(idx) || !state.rows[idx]) return;
+      state.rows[idx].carrier = el.value.trim();
+    });
+  });
+}
+
 /* ---------- Render table ---------- */
 function render() {
   var rows = state.rows;
@@ -375,6 +521,9 @@ function render() {
     + '</div>');
 
   el.innerHTML = table.join('');
+
+  // Make automated rows editable + hide matched sheet column already via CSS
+  makeEditableRows();
 
   /* ------- Identifier validation additions ------- */
   function refreshIdentifierValidation() {
