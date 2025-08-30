@@ -5305,61 +5305,122 @@
       }
     }
     
-    // Setup tab navigation
+    // Direct tab click handlers - more reliable approach
     function setupTabNavigation() {
-      // Main tabs
-      const tabs = document.querySelectorAll('.tab');
-      const tabContents = document.querySelectorAll('.tab-content');
+      // Get all tab links
+      const lookupTab = document.querySelector('a[href="#lookup"]');
+      const inventoryTab = document.querySelector('a[href="#inventory"]');
+      const cashDrawerTab = document.querySelector('a[href="#cash-drawer"]');
+      const warehouseTab = document.querySelector('a[href="#warehouse"]');
+      const adminTab = document.querySelector('a[href="#admin"]');
       
-      tabs.forEach(tab => {
-        tab.addEventListener('click', function(e) {
+      // Get all tab content divs
+      const lookupContent = document.getElementById('lookup-tab');
+      const inventoryContent = document.getElementById('inventory-tab');
+      const cashDrawerContent = document.getElementById('cash-drawer-tab');
+      const warehouseContent = document.getElementById('warehouse-tab');
+      const adminContent = document.getElementById('admin-tab');
+      
+      // Function to hide all tabs
+      function hideAllTabs() {
+        lookupContent.classList.remove('active');
+        inventoryContent.classList.remove('active');
+        cashDrawerContent.classList.remove('active');
+        warehouseContent.classList.remove('active');
+        adminContent.classList.remove('active');
+        
+        lookupTab.classList.remove('active');
+        inventoryTab.classList.remove('active');
+        cashDrawerTab.classList.remove('active');
+        warehouseTab.classList.remove('active');
+        adminTab.classList.remove('active');
+      }
+      
+      // Add click handlers for each tab
+      if (lookupTab) {
+        lookupTab.addEventListener('click', function(e) {
           e.preventDefault();
+          hideAllTabs();
+          lookupTab.classList.add('active');
+          lookupContent.classList.add('active');
+        });
+      }
+      
+      if (inventoryTab) {
+        inventoryTab.addEventListener('click', function(e) {
+          e.preventDefault();
+          hideAllTabs();
+          inventoryTab.classList.add('active');
+          inventoryContent.classList.add('active');
+        });
+      }
+      
+      if (cashDrawerTab) {
+        cashDrawerTab.addEventListener('click', function(e) {
+          e.preventDefault();
+          hideAllTabs();
+          cashDrawerTab.classList.add('active');
+          cashDrawerContent.classList.add('active');
+        });
+      }
+      
+      if (warehouseTab) {
+        warehouseTab.addEventListener('click', function(e) {
+          e.preventDefault();
+          hideAllTabs();
+          warehouseTab.classList.add('active');
+          warehouseContent.classList.add('active');
+        });
+      }
+      
+      if (adminTab) {
+        adminTab.addEventListener('click', function(e) {
+          e.preventDefault();
+          hideAllTabs();
+          adminTab.classList.add('active');
+          adminContent.classList.add('active');
+        });
+      }
+      
+      // Handle sub-tabs similarly with direct references
+      const setupSubTabs = function(parentId, tabIds) {
+        const parent = document.getElementById(parentId);
+        if (!parent) return;
+        
+        tabIds.forEach(id => {
+          const tabLink = document.querySelector(`a[data-subtab="${id}"]`);
+          const tabContent = document.getElementById(`${id}-tab`);
           
-          // Remove active class from all tabs and contents
-          tabs.forEach(t => t.classList.remove('active'));
-          tabContents.forEach(c => c.classList.remove('active'));
-          
-          // Add active class to clicked tab and corresponding content
-          this.classList.add('active');
-          const tabId = this.getAttribute('data-tab');
-          const tabContent = document.getElementById(`${tabId}-tab`);
-          
-          if (tabContent) {
-            tabContent.classList.add('active');
+          if (tabLink && tabContent) {
+            tabLink.addEventListener('click', function(e) {
+              e.preventDefault();
+              
+              // Hide all sub-tabs in this parent
+              const allSubTabs = parent.querySelectorAll('.sub-tab-content');
+              const allSubLinks = document.querySelectorAll(`a[data-subtab^="${id.split('-')[0]}"]`);
+              
+              allSubTabs.forEach(tab => tab.classList.remove('active'));
+              allSubLinks.forEach(link => link.classList.remove('active'));
+              
+              // Show this sub-tab
+              tabLink.classList.add('active');
+              tabContent.classList.add('active');
+            });
           }
         });
-      });
+      };
       
-      // Sub-tabs
-      const subTabs = document.querySelectorAll('.sub-tab');
-      const subTabContents = document.querySelectorAll('.sub-tab-content');
-      
-      subTabs.forEach(tab => {
-        tab.addEventListener('click', function(e) {
-          e.preventDefault();
-          
-          // Get parent tab to determine which set of sub-tabs to update
-          const parentTab = this.closest('.tab-content');
-          
-          if (parentTab) {
-            // Remove active class from all sub-tabs and contents in this group
-            const relatedSubTabs = parentTab.querySelectorAll('.sub-tab');
-            const relatedSubContents = parentTab.querySelectorAll('.sub-tab-content');
-            
-            relatedSubTabs.forEach(t => t.classList.remove('active'));
-            relatedSubContents.forEach(c => c.classList.remove('active'));
-            
-            // Add active class to clicked sub-tab and corresponding content
-            this.classList.add('active');
-            const subTabId = this.getAttribute('data-subtab');
-            const subTabContent = document.getElementById(`${subTabId}-tab`);
-            
-            if (subTabContent) {
-              subTabContent.classList.add('active');
-            }
-          }
-        });
-      });
+      // Setup admin sub-tabs
+      setupSubTabs('admin-tab', [
+        'admin-dashboard', 
+        'admin-customers', 
+        'admin-invoices', 
+        'admin-logs', 
+        'admin-settings',
+        'admin-users',
+        'admin-purchase-log',
+        'admin-backup'
+      ]);
     }
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -5393,6 +5454,35 @@
       
       // Check API balance
       checkBalance();
+    });
+  </script>
+  
+  <!-- Direct tab navigation script -->
+  <script>
+    // Execute immediately to ensure tabs work
+    document.addEventListener('DOMContentLoaded', function() {
+      // Direct tab click handlers
+      const tabLinks = document.querySelectorAll('.tab');
+      const tabContents = document.querySelectorAll('.tab-content');
+      
+      tabLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+          e.preventDefault();
+          
+          const targetId = this.getAttribute('data-tab');
+          const targetContent = document.getElementById(targetId + '-tab');
+          
+          if (targetContent) {
+            // Hide all tabs
+            tabLinks.forEach(t => t.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            
+            // Show selected tab
+            this.classList.add('active');
+            targetContent.classList.add('active');
+          }
+        });
+      });
     });
   </script>
 </body>
