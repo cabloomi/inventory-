@@ -820,6 +820,44 @@
       padding: 20px;
       border-radius: 10px;
     }
+    
+    /* Typeahead styles */
+    .typeahead {
+      position: relative;
+    }
+    
+    .typeahead-results {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 1000;
+      display: none;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    .typeahead-results.show {
+      display: block !important;
+    }
+    
+    .typeahead-item {
+      padding: 8px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .typeahead-item:last-child {
+      border-bottom: none;
+    }
+    
+    .typeahead-item:hover {
+      background: var(--secondary-light);
+    }
   </style>
 <script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
 </head>
@@ -897,11 +935,11 @@
           </div>
         </div>
         
-        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+        <div style="display: grid; grid-template-columns: 3fr 2fr 1fr 3fr 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; align-items: end;">
           <div>
             <label>Device</label>
             <div class="typeahead">
-              <input type="text" id="manual_device" placeholder="Device Name (Type to search or enter custom)">
+              <input type="text" id="manual_device" placeholder="Device Name">
               <div class="typeahead-results" id="manual-device-results"></div>
             </div>
           </div>
@@ -914,28 +952,31 @@
           </div>
           <div>
             <label>Storage</label>
-            <input type="text" id="manual_storage" placeholder="Storage">
+            <select id="manual_storage">
+              <option value="">Select</option>
+              <option value="64GB">64GB</option>
+              <option value="128GB">128GB</option>
+              <option value="256GB">256GB</option>
+              <option value="512GB">512GB</option>
+              <option value="1TB">1TB</option>
+              <option value="2TB">2TB</option>
+            </select>
           </div>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; margin-bottom: 15px;">
           <div>
             <label>IMEI/Serial</label>
-            <div id="serial-inputs-container" style="max-height: 120px; overflow-y: auto;">
+            <div id="serial-inputs-container" style="max-height: 38px; overflow-y: auto;">
               <input type="text" id="manual_imei" placeholder="IMEI or Serial Number" class="serial-input">
             </div>
           </div>
           <div>
             <label>Carrier</label>
             <select id="manual_carrier">
-              <option value="Unknown">Select Carrier</option>
+              <option value="Unknown">Select</option>
               <option value="Unlocked">Unlocked</option>
               <option value="AT&T">AT&T</option>
               <option value="Verizon">Verizon</option>
               <option value="T-Mobile">T-Mobile</option>
               <option value="Sprint">Sprint</option>
-              <option value="UVO">UVO</option>
-              <option value="UVS">UVS</option>
               <option value="XFINITY">XFINITY</option>
               <option value="Other">Other</option>
             </select>
@@ -943,22 +984,19 @@
           <div>
             <label>Condition</label>
             <select id="manual_condition">
-              <option value="NIB">NIB - New In Box</option>
-              <option value="A">A - Like New</option>
-              <option value="B" selected>B - Good</option>
-              <option value="C">C - Fair</option>
-              <option value="D">D - Poor</option>
+              <option value="NIB">NIB</option>
+              <option value="A">A</option>
+              <option value="B" selected>B</option>
+              <option value="C">C</option>
+              <option value="D">D</option>
             </select>
           </div>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
           <div>
-            <label>Price Paid</label>
-            <input type="number" id="manual_price" placeholder="Price" step="0.01">
+            <label>Price</label>
+            <input type="number" id="manual_price" placeholder="$" step="0.01">
           </div>
           <div>
-            <label>Quantity</label>
+            <label>Qty</label>
             <input type="number" id="manual_quantity" value="1" min="1">
           </div>
         </div>
@@ -3972,23 +4010,22 @@
     function unlockWarehouse() {
       const passcode = document.getElementById('warehouse-passcode').value;
       
-      if (passcode !== '2468') {
+      if (passcode === '2468') {
+        state.warehouseUnlocked = true;
+        document.getElementById('warehouse-locked').style.display = 'none';
+        document.getElementById('warehouse-content').style.display = 'block';
+        
+        // Add system log
+        addSystemLog('access', 'Warehouse access granted');
+        
+        // Update pending transfers display
+        updatePendingTransfersDisplay();
+        
+        // Load warehouse data
+        loadWarehouse();
+      } else {
         showAlert('error', 'Invalid warehouse passcode.');
-        return;
       }
-      
-      state.warehouseUnlocked = true;
-      document.getElementById('warehouse-locked').style.display = 'none';
-      document.getElementById('warehouse-content').style.display = 'block';
-      
-      // Add system log
-      addSystemLog('access', 'Warehouse access granted');
-      
-      // Update pending transfers display
-      updatePendingTransfersDisplay();
-      
-      // Load warehouse data
-      loadWarehouse();
     }
     
     // Update the pending transfers display
@@ -4438,20 +4475,19 @@
     function unlockAdmin() {
       const passcode = document.getElementById('admin-passcode').value;
       
-      if (passcode !== '1337') {
+      if (passcode === '1337') {
+        state.adminUnlocked = true;
+        document.getElementById('admin-locked').style.display = 'none';
+        document.getElementById('admin-content').style.display = 'block';
+        
+        // Add system log
+        addSystemLog('access', 'Admin access granted');
+        
+        // Load admin data
+        renderSystemLogs();
+      } else {
         showAlert('error', 'Invalid admin passcode.');
-        return;
       }
-      
-      state.adminUnlocked = true;
-      document.getElementById('admin-locked').style.display = 'none';
-      document.getElementById('admin-content').style.display = 'block';
-      
-      // Add system log
-      addSystemLog('access', 'Admin access granted');
-      
-      // Load admin data
-      renderSystemLogs();
     }
 
     // Render system logs
@@ -5056,39 +5092,57 @@
       
       if (!deviceInput || !deviceResults) return;
       
+      // Show all options on focus (even if empty)
+      deviceInput.addEventListener('focus', function() {
+        deviceResults.innerHTML = '';
+        
+        // Show all options (limited to first 10)
+        const optionsToShow = devices.slice(0, 10);
+        optionsToShow.forEach(device => {
+          const item = document.createElement('div');
+          item.className = 'typeahead-item';
+          item.textContent = device;
+          item.addEventListener('click', function() {
+            deviceInput.value = device;
+            deviceResults.classList.remove('show');
+          });
+          deviceResults.appendChild(item);
+        });
+        
+        deviceResults.classList.add('show');
+      });
+      
+      // Filter as user types
       deviceInput.addEventListener('input', function() {
         const value = this.value.toLowerCase();
         deviceResults.innerHTML = '';
         
+        let matches;
         if (value) {
-          const matches = devices.filter(device => 
+          matches = devices.filter(device => 
             device.toLowerCase().includes(value)
           ).slice(0, 10);
-          
-          matches.forEach(match => {
-            const item = document.createElement('div');
-            item.className = 'typeahead-item';
-            item.textContent = match;
-            item.addEventListener('click', function() {
-              deviceInput.value = match;
-              deviceResults.classList.remove('show');
-            });
-            deviceResults.appendChild(item);
-          });
-          deviceResults.classList.add('show');
         } else {
-          deviceResults.classList.remove('show');
+          matches = devices.slice(0, 10);
         }
+        
+        matches.forEach(match => {
+          const item = document.createElement('div');
+          item.className = 'typeahead-item';
+          item.textContent = match;
+          item.addEventListener('click', function() {
+            deviceInput.value = match;
+            deviceResults.classList.remove('show');
+          });
+          deviceResults.appendChild(item);
+        });
+        
+        deviceResults.classList.add('show');
       });
       
-      deviceInput.addEventListener('focus', function() {
-        if (this.value && deviceResults.children.length) {
-          deviceResults.classList.add('show');
-        }
-      });
-      
+      // Hide dropdown when clicking outside
       document.addEventListener('click', function(e) {
-        if (e.target !== deviceInput && e.target !== deviceResults) {
+        if (e.target !== deviceInput && !deviceResults.contains(e.target)) {
           deviceResults.classList.remove('show');
         }
       });
@@ -5146,39 +5200,57 @@
       
       if (!colorInput || !colorResults) return;
       
+      // Show all options on focus (even if empty)
+      colorInput.addEventListener('focus', function() {
+        colorResults.innerHTML = '';
+        
+        // Show all options (limited to first 10)
+        const optionsToShow = colors.slice(0, 10);
+        optionsToShow.forEach(color => {
+          const item = document.createElement('div');
+          item.className = 'typeahead-item';
+          item.textContent = color;
+          item.addEventListener('click', function() {
+            colorInput.value = color;
+            colorResults.classList.remove('show');
+          });
+          colorResults.appendChild(item);
+        });
+        
+        colorResults.classList.add('show');
+      });
+      
+      // Filter as user types
       colorInput.addEventListener('input', function() {
         const value = this.value.toLowerCase();
         colorResults.innerHTML = '';
         
+        let matches;
         if (value) {
-          const matches = colors.filter(color => 
+          matches = colors.filter(color => 
             color.toLowerCase().includes(value)
           ).slice(0, 10);
-          
-          matches.forEach(match => {
-            const item = document.createElement('div');
-            item.className = 'typeahead-item';
-            item.textContent = match;
-            item.addEventListener('click', function() {
-              colorInput.value = match;
-              colorResults.classList.remove('show');
-            });
-            colorResults.appendChild(item);
-          });
-          colorResults.classList.add('show');
         } else {
-          colorResults.classList.remove('show');
+          matches = colors.slice(0, 10);
         }
+        
+        matches.forEach(match => {
+          const item = document.createElement('div');
+          item.className = 'typeahead-item';
+          item.textContent = match;
+          item.addEventListener('click', function() {
+            colorInput.value = match;
+            colorResults.classList.remove('show');
+          });
+          colorResults.appendChild(item);
+        });
+        
+        colorResults.classList.add('show');
       });
       
-      colorInput.addEventListener('focus', function() {
-        if (this.value && colorResults.children.length) {
-          colorResults.classList.add('show');
-        }
-      });
-      
+      // Hide dropdown when clicking outside
       document.addEventListener('click', function(e) {
-        if (e.target !== colorInput && e.target !== colorResults) {
+        if (e.target !== colorInput && !colorResults.contains(e.target)) {
           colorResults.classList.remove('show');
         }
       });
