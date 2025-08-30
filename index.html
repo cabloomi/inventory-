@@ -834,7 +834,7 @@
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: 5px;
-      max-height: 200px;
+      max-height: 300px;
       overflow-y: auto;
       z-index: 1000;
       display: none;
@@ -849,6 +849,9 @@
       padding: 8px 12px;
       cursor: pointer;
       border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     
     .typeahead-item:last-child {
@@ -857,6 +860,29 @@
     
     .typeahead-item:hover {
       background: var(--secondary-light);
+    }
+    
+    .price-tag {
+      color: var(--primary);
+      font-weight: bold;
+      margin-left: 10px;
+    }
+    
+    .color-item {
+      display: flex;
+      align-items: center;
+    }
+    
+    .color-swatch {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      margin-right: 10px;
+      border: 1px solid var(--border);
+    }
+    
+    .color-name {
+      flex-grow: 1;
     }
   </style>
 <script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
@@ -935,7 +961,7 @@
           </div>
         </div>
         
-        <div style="display: grid; grid-template-columns: 3fr 2fr 1fr 3fr 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; align-items: end;">
+        <div style="display: grid; grid-template-columns: 3fr 2fr 1fr 1.5fr 1fr 1fr 1fr 0.8fr; gap: 8px; margin-bottom: 10px; align-items: end;">
           <div>
             <label>Device</label>
             <div class="typeahead">
@@ -961,12 +987,6 @@
               <option value="1TB">1TB</option>
               <option value="2TB">2TB</option>
             </select>
-          </div>
-          <div>
-            <label>IMEI/Serial</label>
-            <div id="serial-inputs-container" style="max-height: 38px; overflow-y: auto;">
-              <input type="text" id="manual_imei" placeholder="IMEI or Serial Number" class="serial-input">
-            </div>
           </div>
           <div>
             <label>Carrier</label>
@@ -998,6 +1018,12 @@
           <div>
             <label>Qty</label>
             <input type="number" id="manual_quantity" value="1" min="1">
+          </div>
+          <div>
+            <label>&nbsp;</label>
+            <button class="btn btn-secondary" id="manual_notes_btn" style="width: 100%;">
+              <i class="fas fa-sticky-note"></i> Notes
+            </button>
           </div>
         </div>
         
@@ -2074,6 +2100,36 @@
         <div class="modal-footer">
           <button class="btn btn-secondary" id="import-modal-cancel">Cancel</button>
           <button class="btn" id="import-confirm">Import</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Notes Modal -->
+    <div class="modal" id="notes-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Item Notes</h3>
+          <button class="modal-close" id="notes-modal-close">&times;</button>
+        </div>
+        <textarea id="manual_notes" placeholder="Enter notes about this item..." rows="5" style="width: 100%; resize: vertical; margin: 15px 0;"></textarea>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="notes-modal-cancel">Cancel</button>
+          <button class="btn" id="notes-modal-save">Save Notes</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Serial Numbers Modal -->
+    <div class="modal" id="serials-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Add Serial Numbers</h3>
+          <button class="modal-close" id="serials-modal-close">&times;</button>
+        </div>
+        <div id="serials-container" style="margin: 15px 0; max-height: 300px; overflow-y: auto;"></div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="serials-modal-cancel">Cancel</button>
+          <button class="btn" id="serials-modal-save">Save Serial Numbers</button>
         </div>
       </div>
     </div>
@@ -3240,6 +3296,154 @@
         });
     }
     
+    // Notes modal functionality
+    function showNotesModal() {
+      const modal = document.getElementById('notes-modal');
+      modal.classList.add('show');
+      
+      // Focus on the textarea
+      document.getElementById('manual_notes').focus();
+      
+      // Setup close button
+      document.getElementById('notes-modal-close').addEventListener('click', function() {
+        modal.classList.remove('show');
+      });
+      
+      // Setup cancel button
+      document.getElementById('notes-modal-cancel').addEventListener('click', function() {
+        modal.classList.remove('show');
+      });
+      
+      // Setup save button
+      document.getElementById('notes-modal-save').addEventListener('click', function() {
+        // Store notes in localStorage to persist between modal openings
+        const notes = document.getElementById('manual_notes').value;
+        localStorage.setItem('manual_entry_notes', notes);
+        modal.classList.remove('show');
+        showAlert('success', 'Notes saved');
+      });
+    }
+    
+    // Serial numbers modal functionality
+    function showSerialsModal(device, color, storage, quantity, carrier, condition, price, notes, location) {
+      const modal = document.getElementById('serials-modal');
+      const container = document.getElementById('serials-container');
+      
+      // Clear previous content
+      container.innerHTML = '';
+      
+      // Create input fields for each item based on quantity
+      for (let i = 0; i < quantity; i++) {
+        const inputGroup = document.createElement('div');
+        inputGroup.style.marginBottom = '10px';
+        
+        const label = document.createElement('label');
+        label.textContent = `Item ${i + 1} Serial/IMEI:`;
+        
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'serial-modal-input';
+        input.placeholder = 'Enter serial number or IMEI';
+        
+        // Add keydown event for Enter key to move to next input
+        input.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            const inputs = container.querySelectorAll('.serial-modal-input');
+            const currentIndex = Array.from(inputs).indexOf(this);
+            if (currentIndex < inputs.length - 1) {
+              inputs[currentIndex + 1].focus();
+            }
+          }
+        });
+        
+        inputGroup.appendChild(label);
+        inputGroup.appendChild(input);
+        container.appendChild(inputGroup);
+      }
+      
+      // Show the modal
+      modal.classList.add('show');
+      
+      // Focus on the first input
+      const firstInput = container.querySelector('.serial-modal-input');
+      if (firstInput) {
+        firstInput.focus();
+      }
+      
+      // Setup close button
+      document.getElementById('serials-modal-close').addEventListener('click', function() {
+        modal.classList.remove('show');
+      });
+      
+      // Setup cancel button
+      document.getElementById('serials-modal-cancel').addEventListener('click', function() {
+        modal.classList.remove('show');
+      });
+      
+      // Setup save button
+      document.getElementById('serials-modal-save').addEventListener('click', function() {
+        // Get all serial inputs
+        const serialInputs = container.querySelectorAll('.serial-modal-input');
+        const serials = Array.from(serialInputs)
+          .map(input => input.value.trim())
+          .filter(val => val !== '');
+        
+        // Add items with serials
+        if (serials.length > 0) {
+          for (const serial of serials) {
+            addSingleItem(device, color, storage, serial, carrier, condition, price, notes, location);
+          }
+          
+          // Add to purchase log
+          addToPurchaseLog(device, color, storage, 0, price, carrier, condition, serials);
+          
+          // Add to cash drawer activity
+          if (price && parseFloat(price) > 0) {
+            addCashDrawerActivity('purchase', `Purchased ${serials.length} x ${device} ${color} ${storage}`, parseFloat(price) * serials.length * -1);
+          }
+          
+          showAlert('success', `Added ${serials.length} items with serial numbers to ${location}`);
+        }
+        
+        // Add remaining items without serials
+        const remainingItems = quantity - serials.length;
+        if (remainingItems > 0) {
+          for (let i = 0; i < remainingItems; i++) {
+            addSingleItem(device, color, storage, '', carrier, condition, price, notes, location);
+          }
+          
+          // Add to purchase log
+          addToPurchaseLog(device, color, storage, remainingItems, price, carrier, condition);
+          
+          // Add to cash drawer activity
+          if (price && parseFloat(price) > 0) {
+            addCashDrawerActivity('purchase', `Purchased ${remainingItems} x ${device} ${color} ${storage}`, parseFloat(price) * remainingItems * -1);
+          }
+          
+          showAlert('info', `Added ${remainingItems} items without serial numbers to ${location}`);
+        }
+        
+        // Close the modal
+        modal.classList.remove('show');
+        
+        // Clear the form
+        clearManualEntryForm();
+      });
+    }
+    
+    // Clear manual entry form
+    function clearManualEntryForm() {
+      document.getElementById('manual_device').value = '';
+      document.getElementById('manual_color').value = '';
+      document.getElementById('manual_storage').value = '';
+      document.getElementById('manual_carrier').value = 'Unknown';
+      document.getElementById('manual_condition').value = 'B';
+      document.getElementById('manual_price').value = '';
+      document.getElementById('manual_quantity').value = '1';
+      localStorage.removeItem('manual_entry_notes');
+    }
+    
     // Add item from manual entry section
     function addItemFromManualEntry(location) {
       const device = document.getElementById('manual_device').value.trim();
@@ -3249,49 +3453,34 @@
       const condition = document.getElementById('manual_condition').value;
       const price = document.getElementById('manual_price').value;
       const quantity = parseInt(document.getElementById('manual_quantity').value) || 1;
-      const notes = document.getElementById('manual_notes').value;
-      
-      // Get all serial inputs
-      const serialInputs = document.querySelectorAll('.serial-input');
-      const serials = Array.from(serialInputs).map(input => input.value.trim()).filter(val => val !== '');
+      const notes = localStorage.getItem('manual_entry_notes') || '';
       
       if (!device) {
         showAlert('error', 'Please enter a device name.');
         return;
       }
       
-      // If no serials entered but quantity > 0, create entries without serials
-      if (serials.length === 0 && quantity > 0) {
-        for (let i = 0; i < quantity; i++) {
-          addSingleItem(device, color, storage, '', carrier, condition, price, notes, location);
-        }
-        showAlert('success', `Added ${quantity} items to ${location}`);
-        
-        // Add to purchase log
-        addToPurchaseLog(device, color, storage, quantity, price, carrier, condition);
-        
-        // Add to cash drawer activity if price is provided
-        if (price && parseFloat(price) > 0) {
-          addCashDrawerActivity('purchase', `Purchased ${quantity} x ${device} ${color} ${storage}`, parseFloat(price) * quantity * -1);
-        }
-        
+      // Show serial numbers modal if quantity > 1
+      if (quantity > 1) {
+        showSerialsModal(device, color, storage, quantity, carrier, condition, price, notes, location);
         return;
       }
       
-      // If serials are entered, add each one individually
-      for (const serial of serials) {
-        addSingleItem(device, color, storage, serial, carrier, condition, price, notes, location);
-      }
-      
-      showAlert('success', `Added ${serials.length} items to ${location}`);
+      // For single items, add directly
+      addSingleItem(device, color, storage, '', carrier, condition, price, notes, location);
       
       // Add to purchase log
-      addToPurchaseLog(device, color, storage, 0, price, carrier, condition, serials);
+      addToPurchaseLog(device, color, storage, 1, price, carrier, condition);
       
       // Add to cash drawer activity if price is provided
       if (price && parseFloat(price) > 0) {
-        addCashDrawerActivity('purchase', `Purchased ${serials.length} x ${device} ${color} ${storage}`, parseFloat(price) * serials.length * -1);
+        addCashDrawerActivity('purchase', `Purchased ${device} ${color} ${storage}`, parseFloat(price) * -1);
       }
+      
+      showAlert('success', `Added ${device} ${color} ${storage} to ${location}`);
+      
+      // Clear the form
+      clearManualEntryForm();
     }
     
     // Add cash drawer activity
@@ -4011,7 +4200,10 @@
       const passcode = document.getElementById('warehouse-passcode').value;
       
       if (passcode === '2468') {
+        // Set warehouse as unlocked
         state.warehouseUnlocked = true;
+        
+        // Show warehouse content
         document.getElementById('warehouse-locked').style.display = 'none';
         document.getElementById('warehouse-content').style.display = 'block';
         
@@ -4023,6 +4215,21 @@
         
         // Load warehouse data
         loadWarehouse();
+        
+        // Ensure warehouse tab is active
+        const tabLinks = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        // Hide all tabs
+        tabLinks.forEach(t => t.classList.remove('active'));
+        tabContents.forEach(c => c.classList.remove('active'));
+        
+        // Show warehouse tab
+        const warehouseTab = document.querySelector('a[data-tab="warehouse"]');
+        const warehouseContent = document.getElementById('warehouse-tab');
+        
+        if (warehouseTab) warehouseTab.classList.add('active');
+        if (warehouseContent) warehouseContent.classList.add('active');
       } else {
         showAlert('error', 'Invalid warehouse passcode.');
       }
@@ -4476,7 +4683,10 @@
       const passcode = document.getElementById('admin-passcode').value;
       
       if (passcode === '1337') {
+        // Set admin as unlocked
         state.adminUnlocked = true;
+        
+        // Show admin content
         document.getElementById('admin-locked').style.display = 'none';
         document.getElementById('admin-content').style.display = 'block';
         
@@ -4485,6 +4695,21 @@
         
         // Load admin data
         renderSystemLogs();
+        
+        // Ensure admin tab is active
+        const tabLinks = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        // Hide all tabs
+        tabLinks.forEach(t => t.classList.remove('active'));
+        tabContents.forEach(c => c.classList.remove('active'));
+        
+        // Show admin tab
+        const adminTab = document.querySelector('a[data-tab="admin"]');
+        const adminContent = document.getElementById('admin-tab');
+        
+        if (adminTab) adminTab.classList.add('active');
+        if (adminContent) adminContent.classList.add('active');
       } else {
         showAlert('error', 'Invalid admin passcode.');
       }
@@ -4721,6 +4946,12 @@
       
       // Reset button
       document.getElementById('reset-btn').addEventListener('click', resetLookup);
+      
+      // Notes button
+      const notesBtn = document.getElementById('manual_notes_btn');
+      if (notesBtn) {
+        notesBtn.addEventListener('click', showNotesModal);
+      }
       
       // Warehouse pending transfers buttons
       const acceptAllBtn = document.getElementById('accept-all-transfers-btn');
@@ -5041,103 +5272,107 @@
       });
     }
 
-    // Setup manual entry typeahead for device names
+    // Setup manual entry typeahead for device names with prices
     function setupManualDeviceTypeahead() {
       const deviceInput = document.getElementById('manual_device');
       const deviceResults = document.getElementById('manual-device-results');
+      const priceInput = document.getElementById('manual_price');
       
-      // Comprehensive device suggestions
-      const devices = [
-        // iPhones
-        'iPhone 15 Pro Max', 'iPhone 15 Pro', 'iPhone 15 Plus', 'iPhone 15',
-        'iPhone 14 Pro Max', 'iPhone 14 Pro', 'iPhone 14 Plus', 'iPhone 14',
-        'iPhone 13 Pro Max', 'iPhone 13 Pro', 'iPhone 13', 'iPhone 13 Mini',
-        'iPhone SE (3rd gen)', 'iPhone 12 Pro Max', 'iPhone 12 Pro', 'iPhone 12', 'iPhone 12 Mini',
-        
-        // iPads
-        'iPad Pro 12.9" (M2)', 'iPad Pro 11" (M2)', 'iPad Pro 12.9" (M1)', 'iPad Pro 11" (M1)',
-        'iPad Air (5th gen)', 'iPad Air (4th gen)', 'iPad Mini (6th gen)', 'iPad (10th gen)', 'iPad (9th gen)',
-        
-        // Apple Watches
-        'Apple Watch Ultra 2', 'Apple Watch Ultra', 'Apple Watch Series 9', 'Apple Watch Series 8',
-        'Apple Watch SE (2nd gen)', 'Apple Watch SE',
-        
-        // AirPods
-        'AirPods Pro (2nd gen)', 'AirPods (3rd gen)', 'AirPods (2nd gen)', 'AirPods Max',
-        
-        // MacBooks
-        'MacBook Pro 16" (M3)', 'MacBook Pro 14" (M3)', 'MacBook Pro 16" (M2)', 'MacBook Pro 14" (M2)',
-        'MacBook Air 15" (M2)', 'MacBook Air 13" (M2)', 'MacBook Air 13" (M1)',
-        
-        // Samsung Galaxy S Series
-        'Samsung Galaxy S24 Ultra', 'Samsung Galaxy S24+', 'Samsung Galaxy S24',
-        'Samsung Galaxy S23 Ultra', 'Samsung Galaxy S23+', 'Samsung Galaxy S23',
-        
-        // Samsung Foldables
-        'Samsung Galaxy Z Fold5', 'Samsung Galaxy Z Fold4', 
-        'Samsung Galaxy Z Flip5', 'Samsung Galaxy Z Flip4',
-        
-        // Samsung Tablets
-        'Samsung Galaxy Tab S9 Ultra', 'Samsung Galaxy Tab S9+', 'Samsung Galaxy Tab S9',
-        'Samsung Galaxy Tab S8 Ultra', 'Samsung Galaxy Tab S8+', 'Samsung Galaxy Tab S8',
-        
-        // Samsung Watches
-        'Samsung Galaxy Watch6', 'Samsung Galaxy Watch6 Classic',
-        'Samsung Galaxy Watch5', 'Samsung Galaxy Watch5 Pro',
-        
-        // Samsung Buds
-        'Samsung Galaxy Buds3 Pro', 'Samsung Galaxy Buds3',
-        'Samsung Galaxy Buds2 Pro', 'Samsung Galaxy Buds2'
+      // Device suggestions with prices
+      const deviceData = [
+        { name: 'iPhone 15 Pro Max', price: 1099 },
+        { name: 'iPhone 15 Pro', price: 999 },
+        { name: 'iPhone 15 Plus', price: 899 },
+        { name: 'iPhone 15', price: 799 },
+        { name: 'iPhone 14 Pro Max', price: 999 },
+        { name: 'iPhone 14 Pro', price: 899 },
+        { name: 'iPhone 14 Plus', price: 799 },
+        { name: 'iPhone 14', price: 699 },
+        { name: 'iPhone 13 Pro Max', price: 899 },
+        { name: 'iPhone 13 Pro', price: 799 },
+        { name: 'iPhone 13', price: 699 },
+        { name: 'iPhone 13 Mini', price: 599 },
+        { name: 'iPhone SE (3rd gen)', price: 429 },
+        { name: 'iPhone 12 Pro Max', price: 799 },
+        { name: 'iPhone 12 Pro', price: 699 },
+        { name: 'iPhone 12', price: 599 },
+        { name: 'iPhone 12 Mini', price: 499 },
+        { name: 'iPad Pro 12.9" (M2)', price: 1099 },
+        { name: 'iPad Pro 11" (M2)', price: 799 },
+        { name: 'iPad Air (5th gen)', price: 599 },
+        { name: 'iPad Mini (6th gen)', price: 499 },
+        { name: 'iPad (10th gen)', price: 449 },
+        { name: 'Apple Watch Ultra 2', price: 799 },
+        { name: 'Apple Watch Series 9', price: 399 },
+        { name: 'Apple Watch SE (2nd gen)', price: 249 },
+        { name: 'AirPods Pro (2nd gen)', price: 249 },
+        { name: 'AirPods (3rd gen)', price: 179 },
+        { name: 'AirPods Max', price: 549 },
+        { name: 'MacBook Pro 16" (M3)', price: 2499 },
+        { name: 'MacBook Pro 14" (M3)', price: 1999 },
+        { name: 'MacBook Air 15" (M2)', price: 1299 },
+        { name: 'MacBook Air 13" (M2)', price: 1099 },
+        { name: 'Samsung Galaxy S24 Ultra', price: 1299 },
+        { name: 'Samsung Galaxy S24+', price: 999 },
+        { name: 'Samsung Galaxy S24', price: 799 },
+        { name: 'Samsung Galaxy S23 Ultra', price: 1199 },
+        { name: 'Samsung Galaxy S23+', price: 899 },
+        { name: 'Samsung Galaxy S23', price: 699 },
+        { name: 'Samsung Galaxy Z Fold5', price: 1799 },
+        { name: 'Samsung Galaxy Z Flip5', price: 999 },
+        { name: 'Samsung Galaxy Tab S9 Ultra', price: 1199 },
+        { name: 'Samsung Galaxy Tab S9+', price: 999 },
+        { name: 'Samsung Galaxy Tab S9', price: 799 },
+        { name: 'Samsung Galaxy Watch6', price: 299 },
+        { name: 'Samsung Galaxy Watch6 Classic', price: 399 },
+        { name: 'Samsung Galaxy Buds3 Pro', price: 199 },
+        { name: 'Samsung Galaxy Buds2 Pro', price: 149 }
       ];
       
       if (!deviceInput || !deviceResults) return;
       
-      // Show all options on focus (even if empty)
-      deviceInput.addEventListener('focus', function() {
+      // Function to create and display device list
+      function displayDeviceList(devices) {
         deviceResults.innerHTML = '';
         
-        // Show all options (limited to first 10)
-        const optionsToShow = devices.slice(0, 10);
-        optionsToShow.forEach(device => {
+        devices.forEach(device => {
           const item = document.createElement('div');
           item.className = 'typeahead-item';
-          item.textContent = device;
+          item.innerHTML = `<span>${device.name}</span><span class="price-tag">$${device.price}</span>`;
           item.addEventListener('click', function() {
-            deviceInput.value = device;
+            deviceInput.value = device.name;
+            priceInput.value = device.price;
             deviceResults.classList.remove('show');
           });
           deviceResults.appendChild(item);
         });
         
-        deviceResults.classList.add('show');
+        if (devices.length > 0) {
+          deviceResults.classList.add('show');
+        } else {
+          deviceResults.classList.remove('show');
+        }
+      }
+      
+      // Show all options on focus
+      deviceInput.addEventListener('focus', function() {
+        displayDeviceList(deviceData.slice(0, 10));
       });
       
       // Filter as user types
       deviceInput.addEventListener('input', function() {
         const value = this.value.toLowerCase();
-        deviceResults.innerHTML = '';
         
         let matches;
         if (value) {
-          matches = devices.filter(device => 
-            device.toLowerCase().includes(value)
+          matches = deviceData.filter(device => 
+            device.name.toLowerCase().includes(value)
           ).slice(0, 10);
         } else {
-          matches = devices.slice(0, 10);
+          matches = deviceData.slice(0, 10);
         }
         
-        matches.forEach(match => {
-          const item = document.createElement('div');
-          item.className = 'typeahead-item';
-          item.textContent = match;
-          item.addEventListener('click', function() {
-            deviceInput.value = match;
-            deviceResults.classList.remove('show');
-          });
-          deviceResults.appendChild(item);
-        });
-        
-        deviceResults.classList.add('show');
+        displayDeviceList(matches);
       });
       
       // Hide dropdown when clicking outside
@@ -5148,104 +5383,108 @@
       });
     }
     
-    // Setup manual entry typeahead for colors
+    // Setup manual entry typeahead for colors with color swatches
     function setupManualColorTypeahead() {
       const colorInput = document.getElementById('manual_color');
       const colorResults = document.getElementById('manual-color-results');
       
-      // Official Apple and Samsung colors since 2023
+      // Official Apple and Samsung colors since 2023 with hex codes
       const colors = [
         // iPhone 15 Pro/Pro Max colors
-        'Natural Titanium', 'Blue Titanium', 'White Titanium', 'Black Titanium',
+        { name: 'Natural Titanium', hex: '#E3D0C0' },
+        { name: 'Blue Titanium', hex: '#394F64' },
+        { name: 'White Titanium', hex: '#F5F5F0' },
+        { name: 'Black Titanium', hex: '#2F2F2F' },
         
         // iPhone 15/15 Plus colors
-        'Pink', 'Yellow', 'Green', 'Blue', 'Black',
+        { name: 'Pink', hex: '#F8D3D3' },
+        { name: 'Yellow', hex: '#F8E8A6' },
+        { name: 'Green', hex: '#D1E0D9' },
+        { name: 'Blue', hex: '#C4D7EE' },
+        { name: 'Black', hex: '#1F1F1F' },
         
         // iPhone 14 Pro/Pro Max colors
-        'Deep Purple', 'Gold', 'Silver', 'Space Black',
+        { name: 'Deep Purple', hex: '#635666' },
+        { name: 'Gold', hex: '#F4E8CE' },
+        { name: 'Silver', hex: '#F1F2ED' },
+        { name: 'Space Black', hex: '#2F2F2F' },
         
         // iPhone 14/14 Plus colors
-        'Midnight', 'Starlight', 'Blue', 'Purple', 'Red', 'Yellow',
+        { name: 'Midnight', hex: '#1F1F1F' },
+        { name: 'Starlight', hex: '#F8F7F2' },
+        { name: 'Purple', hex: '#E5DDEA' },
+        { name: 'Red', hex: '#CC2127' },
         
         // iPad Pro colors
-        'Silver', 'Space Gray',
+        { name: 'Space Gray', hex: '#4A4A4A' },
         
-        // iPad Air colors
-        'Space Gray', 'Starlight', 'Pink', 'Purple', 'Blue',
+        // Apple Watch colors
+        { name: 'Titanium', hex: '#D1CDCA' },
+        { name: 'Graphite', hex: '#5A5A5A' },
         
-        // Apple Watch Ultra colors
-        'Natural Titanium', 'Titanium',
-        
-        // Apple Watch Series 9 colors
-        'Midnight', 'Starlight', 'Silver', 'Red', 'Pink', 'Gold', 'Graphite',
-        
-        // AirPods Max colors
-        'Silver', 'Space Gray', 'Pink', 'Green', 'Sky Blue',
-        
-        // MacBook colors
-        'Silver', 'Space Gray', 'Midnight', 'Starlight',
-        
-        // Samsung Galaxy S24 Ultra colors
-        'Titanium Black', 'Titanium Gray', 'Titanium Violet', 'Titanium Yellow',
-        
-        // Samsung Galaxy S24/S24+ colors
-        'Onyx Black', 'Marble Gray', 'Cobalt Violet', 'Amber Yellow',
-        
-        // Samsung Galaxy S23 Ultra colors
-        'Phantom Black', 'Cream', 'Green', 'Lavender', 'Graphite', 'Sky Blue', 'Lime', 'Red',
-        
-        // Samsung Galaxy Z Fold5/Flip5 colors
-        'Icy Blue', 'Cream', 'Phantom Black', 'Lavender', 'Gray', 'Blue', 'Green', 'Yellow'
+        // Samsung Galaxy colors
+        { name: 'Titanium Black', hex: '#2A2A2A' },
+        { name: 'Titanium Gray', hex: '#7D7E80' },
+        { name: 'Titanium Violet', hex: '#9C8CB3' },
+        { name: 'Titanium Yellow', hex: '#FBE698' },
+        { name: 'Onyx Black', hex: '#1A1A1A' },
+        { name: 'Marble Gray', hex: '#C0C0C0' },
+        { name: 'Cobalt Violet', hex: '#8A7FA8' },
+        { name: 'Amber Yellow', hex: '#FFCC66' },
+        { name: 'Phantom Black', hex: '#1A1A1A' },
+        { name: 'Cream', hex: '#FFF8E7' },
+        { name: 'Lavender', hex: '#E6E6FA' },
+        { name: 'Sky Blue', hex: '#87CEEB' },
+        { name: 'Lime', hex: '#C8E6C9' },
+        { name: 'Icy Blue', hex: '#A5D8F3' }
       ];
       
       if (!colorInput || !colorResults) return;
       
-      // Show all options on focus (even if empty)
-      colorInput.addEventListener('focus', function() {
+      // Function to create and display color list
+      function displayColorList(colorsList) {
         colorResults.innerHTML = '';
         
-        // Show all options (limited to first 10)
-        const optionsToShow = colors.slice(0, 10);
-        optionsToShow.forEach(color => {
+        colorsList.forEach(color => {
           const item = document.createElement('div');
-          item.className = 'typeahead-item';
-          item.textContent = color;
+          item.className = 'typeahead-item color-item';
+          item.innerHTML = `
+            <span class="color-swatch" style="background-color: ${color.hex}"></span>
+            <span class="color-name">${color.name}</span>
+          `;
           item.addEventListener('click', function() {
-            colorInput.value = color;
+            colorInput.value = color.name;
             colorResults.classList.remove('show');
           });
           colorResults.appendChild(item);
         });
         
-        colorResults.classList.add('show');
+        if (colorsList.length > 0) {
+          colorResults.classList.add('show');
+        } else {
+          colorResults.classList.remove('show');
+        }
+      }
+      
+      // Show all options on focus
+      colorInput.addEventListener('focus', function() {
+        displayColorList(colors.slice(0, 10));
       });
       
       // Filter as user types
       colorInput.addEventListener('input', function() {
         const value = this.value.toLowerCase();
-        colorResults.innerHTML = '';
         
         let matches;
         if (value) {
           matches = colors.filter(color => 
-            color.toLowerCase().includes(value)
+            color.name.toLowerCase().includes(value)
           ).slice(0, 10);
         } else {
           matches = colors.slice(0, 10);
         }
         
-        matches.forEach(match => {
-          const item = document.createElement('div');
-          item.className = 'typeahead-item';
-          item.textContent = match;
-          item.addEventListener('click', function() {
-            colorInput.value = match;
-            colorResults.classList.remove('show');
-          });
-          colorResults.appendChild(item);
-        });
-        
-        colorResults.classList.add('show');
+        displayColorList(matches);
       });
       
       // Hide dropdown when clicking outside
