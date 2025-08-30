@@ -160,6 +160,57 @@
       margin-bottom: 15px;
     }
     
+    /* Pending Transfers Styles */
+    #pending-transfers-section {
+      margin-bottom: 20px;
+    }
+    
+    #pending-transfers-section .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    #pending-transfers-section h3 {
+      margin: 0;
+    }
+    
+    .transfer-action-btn {
+      padding: 5px 10px;
+      margin: 0 2px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .transfer-accept-btn {
+      background-color: var(--primary);
+      color: #fff;
+    }
+    
+    .transfer-reject-btn {
+      background-color: var(--error);
+      color: #fff;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+    }
+    
+    .empty-state i {
+      font-size: 48px;
+      margin-bottom: 15px;
+      opacity: 0.5;
+    }
+    
+    .empty-state p {
+      font-size: 18px;
+      margin: 0;
+    }
+    
     .card-header h2 {
       font-size: 18px;
       font-weight: 600;
@@ -836,10 +887,10 @@
         </div>
         
         <div class="form-row">
-          <div>
+          <div style="flex: 2">
             <label>Device</label>
             <div class="typeahead">
-              <input type="text" id="manual_device" placeholder="Device Name">
+              <input type="text" id="manual_device" placeholder="Device Name (Type to search or enter custom)">
               <div class="typeahead-results" id="manual-device-results"></div>
             </div>
           </div>
@@ -859,7 +910,9 @@
         <div class="form-row">
           <div>
             <label>IMEI/Serial</label>
-            <input type="text" id="manual_imei" placeholder="IMEI or Serial Number">
+            <div id="serial-inputs-container">
+              <input type="text" id="manual_imei" placeholder="IMEI or Serial Number" class="serial-input">
+            </div>
           </div>
           <div>
             <label>Carrier</label>
@@ -870,6 +923,9 @@
               <option value="Verizon">Verizon</option>
               <option value="T-Mobile">T-Mobile</option>
               <option value="Sprint">Sprint</option>
+              <option value="UVO">UVO</option>
+              <option value="UVS">UVS</option>
+              <option value="XFINITY">XFINITY</option>
               <option value="Other">Other</option>
             </select>
           </div>
@@ -883,17 +939,6 @@
               <option value="D">D - Poor</option>
             </select>
           </div>
-          <div>
-            <label>Device Type</label>
-            <select id="manual_type">
-              <option value="Phone" selected>Phone</option>
-              <option value="Tablet">Tablet</option>
-              <option value="Laptop">Laptop</option>
-              <option value="Smartwatch">Smartwatch</option>
-              <option value="Accessory">Accessory</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
         </div>
         
         <div class="form-row">
@@ -903,11 +948,7 @@
           </div>
           <div>
             <label>Quantity</label>
-            <input type="number" id="manual_quantity" value="1" min="1">
-          </div>
-          <div>
-            <label>Purchase Date</label>
-            <input type="date" id="manual_purchase_date">
+            <input type="number" id="manual_quantity" value="1" min="1" id="quantity-input">
           </div>
         </div>
         
@@ -1169,6 +1210,46 @@
         </div>
         
         <div id="warehouse-content" style="display: none;">
+          <!-- Pending Transfers Section -->
+          <div class="card" id="pending-transfers-section">
+            <div class="card-header">
+              <h3>Pending Transfers</h3>
+              <div class="btn-group">
+                <button class="btn" id="accept-all-transfers-btn">
+                  <i class="fas fa-check"></i> Accept All
+                </button>
+                <button class="btn btn-secondary" id="reject-all-transfers-btn">
+                  <i class="fas fa-times"></i> Reject All
+                </button>
+              </div>
+            </div>
+            
+            <div class="table-responsive" id="pending-transfers-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width: 30px;">
+                      <input type="checkbox" id="pending-select-all">
+                    </th>
+                    <th>IMEI</th>
+                    <th>Device</th>
+                    <th>Condition</th>
+                    <th>Carrier</th>
+                    <th>Transfer Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="pending-transfers-table-body">
+                  <!-- Pending transfers will be added here dynamically -->
+                </tbody>
+              </table>
+              <div id="no-pending-transfers" class="empty-state">
+                <i class="fas fa-check-circle"></i>
+                <p>No pending transfers</p>
+              </div>
+            </div>
+          </div>
+          
           <div class="form-row">
             <div>
               <input type="text" id="warehouse-search" placeholder="Search by IMEI or device name">
@@ -1317,6 +1398,7 @@
             <a href="#admin-logs" class="sub-tab" data-subtab="admin-logs">System Logs</a>
             <a href="#admin-settings" class="sub-tab" data-subtab="admin-settings">Settings</a>
             <a href="#admin-users" class="sub-tab" data-subtab="admin-users">Users</a>
+            <a href="#admin-purchase-log" class="sub-tab" data-subtab="admin-purchase-log">Purchase Log</a>
             <a href="#admin-backup" class="sub-tab" data-subtab="admin-backup">Backup & Restore</a>
           </div>
           
@@ -1802,6 +1884,61 @@
                   </thead>
                   <tbody id="users-body">
                     <!-- Users will be dynamically inserted here -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Purchase Log Tab -->
+          <div id="admin-purchase-log-tab" class="sub-tab-content">
+            <div class="admin-panel">
+              <h3>Purchase Log</h3>
+              <div class="form-row">
+                <div style="flex: 0 0 auto;">
+                  <button class="btn" id="export-purchase-log-btn">
+                    <i class="fas fa-file-export"></i> Export CSV
+                  </button>
+                </div>
+                <div style="flex: 0 0 auto;">
+                  <button class="btn" id="print-purchase-log-btn">
+                    <i class="fas fa-print"></i> Print
+                  </button>
+                </div>
+              </div>
+              
+              <div class="form-row">
+                <div>
+                  <label>Filter by Date</label>
+                  <div class="date-range">
+                    <input type="date" id="purchase-log-start-date">
+                    <span>to</span>
+                    <input type="date" id="purchase-log-end-date">
+                    <button class="btn" id="apply-purchase-log-filter">Apply</button>
+                  </div>
+                </div>
+                <div>
+                  <label>Search</label>
+                  <input type="text" id="purchase-log-search" placeholder="Search by device, IMEI, etc.">
+                </div>
+              </div>
+              
+              <div class="table-responsive">
+                <table id="purchase-log-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Device</th>
+                      <th>Color</th>
+                      <th>Storage</th>
+                      <th>IMEI/Serial</th>
+                      <th>Carrier</th>
+                      <th>Condition</th>
+                      <th>Price Paid</th>
+                    </tr>
+                  </thead>
+                  <tbody id="purchase-log-table-body">
+                    <!-- Purchase log entries will be dynamically added here -->
                   </tbody>
                 </table>
               </div>
@@ -2878,24 +3015,334 @@
       document.getElementById('m_device').focus();
     }
     
+    // Purchase Log functionality
+    function addToPurchaseLog(device, color, storage, quantity, price, carrier, condition = 'B', serials = []) {
+      // Get or initialize purchase log from localStorage
+      let purchaseLog = JSON.parse(localStorage.getItem('purchaseLog') || '[]');
+      
+      const timestamp = new Date().toISOString();
+      
+      // If serials are provided, add each one individually
+      if (serials && serials.length > 0) {
+        serials.forEach(serial => {
+          purchaseLog.push({
+            timestamp,
+            device,
+            color,
+            storage,
+            serial,
+            carrier,
+            condition,
+            price: parseFloat(price) || 0
+          });
+        });
+      } else {
+        // Otherwise add entries based on quantity
+        for (let i = 0; i < quantity; i++) {
+          purchaseLog.push({
+            timestamp,
+            device,
+            color,
+            storage,
+            serial: '',
+            carrier,
+            condition,
+            price: parseFloat(price) || 0
+          });
+        }
+      }
+      
+      // Save updated purchase log
+      localStorage.setItem('purchaseLog', JSON.stringify(purchaseLog));
+      
+      // Update purchase log table if it's currently visible
+      updatePurchaseLogTable();
+    }
+    
+    // Update the purchase log table with current data
+    function updatePurchaseLogTable() {
+      const tableBody = document.getElementById('purchase-log-table-body');
+      if (!tableBody) return;
+      
+      // Get purchase log from localStorage
+      const purchaseLog = JSON.parse(localStorage.getItem('purchaseLog') || '[]');
+      
+      // Clear existing rows
+      tableBody.innerHTML = '';
+      
+      // Add rows for each purchase
+      purchaseLog.forEach(item => {
+        const row = document.createElement('tr');
+        
+        // Format date
+        const date = new Date(item.timestamp);
+        const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        
+        row.innerHTML = `
+          <td>${formattedDate}</td>
+          <td>${escapeHtml(item.device)}</td>
+          <td>${escapeHtml(item.color)}</td>
+          <td>${escapeHtml(item.storage)}</td>
+          <td>${escapeHtml(item.serial)}</td>
+          <td>${escapeHtml(item.carrier)}</td>
+          <td>${escapeHtml(item.condition)}</td>
+          <td>$${(item.price || 0).toFixed(2)}</td>
+        `;
+        
+        tableBody.appendChild(row);
+      });
+    }
+    
+    // Export purchase log to CSV
+    function exportPurchaseLogToCSV() {
+      const purchaseLog = JSON.parse(localStorage.getItem('purchaseLog') || '[]');
+      
+      if (purchaseLog.length === 0) {
+        showAlert('warning', 'No purchase log data to export.');
+        return;
+      }
+      
+      // Create CSV header
+      let csv = 'Date,Device,Color,Storage,IMEI/Serial,Carrier,Condition,Price Paid\n';
+      
+      // Add rows
+      purchaseLog.forEach(item => {
+        const date = new Date(item.timestamp);
+        const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        
+        csv += `"${formattedDate}","${item.device}","${item.color}","${item.storage}","${item.serial}","${item.carrier}","${item.condition}","$${(item.price || 0).toFixed(2)}"\n`;
+      });
+      
+      // Create download link
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `purchase_log_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      showAlert('success', 'Purchase log exported successfully.');
+    }
+    
+    // Filter purchase log by date range and search term
+    function filterPurchaseLog() {
+      const startDate = document.getElementById('purchase-log-start-date').value;
+      const endDate = document.getElementById('purchase-log-end-date').value;
+      const searchTerm = document.getElementById('purchase-log-search').value.toLowerCase();
+      
+      const tableBody = document.getElementById('purchase-log-table-body');
+      if (!tableBody) return;
+      
+      // Get purchase log from localStorage
+      const purchaseLog = JSON.parse(localStorage.getItem('purchaseLog') || '[]');
+      
+      // Clear existing rows
+      tableBody.innerHTML = '';
+      
+      // Filter and add rows
+      purchaseLog
+        .filter(item => {
+          // Date filter
+          if (startDate && new Date(item.timestamp) < new Date(startDate)) return false;
+          if (endDate) {
+            const endDateTime = new Date(endDate);
+            endDateTime.setHours(23, 59, 59, 999);
+            if (new Date(item.timestamp) > endDateTime) return false;
+          }
+          
+          // Search filter
+          if (searchTerm) {
+            const searchFields = [
+              item.device, 
+              item.color, 
+              item.storage, 
+              item.serial, 
+              item.carrier, 
+              item.condition
+            ].map(field => (field || '').toLowerCase());
+            
+            return searchFields.some(field => field.includes(searchTerm));
+          }
+          
+          return true;
+        })
+        .forEach(item => {
+          const row = document.createElement('tr');
+          
+          // Format date
+          const date = new Date(item.timestamp);
+          const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+          
+          row.innerHTML = `
+            <td>${formattedDate}</td>
+            <td>${escapeHtml(item.device)}</td>
+            <td>${escapeHtml(item.color)}</td>
+            <td>${escapeHtml(item.storage)}</td>
+            <td>${escapeHtml(item.serial)}</td>
+            <td>${escapeHtml(item.carrier)}</td>
+            <td>${escapeHtml(item.condition)}</td>
+            <td>$${(item.price || 0).toFixed(2)}</td>
+          `;
+          
+          tableBody.appendChild(row);
+        });
+    }
+    
     // Add item from manual entry section
     function addItemFromManualEntry(location) {
       const device = document.getElementById('manual_device').value.trim();
       const color = document.getElementById('manual_color').value.trim();
       const storage = document.getElementById('manual_storage').value.trim();
-      const imei = document.getElementById('manual_imei').value.trim();
       const carrier = document.getElementById('manual_carrier').value;
       const condition = document.getElementById('manual_condition').value;
-      const deviceType = document.getElementById('manual_type').value;
       const price = document.getElementById('manual_price').value;
       const quantity = parseInt(document.getElementById('manual_quantity').value) || 1;
-      const purchaseDate = document.getElementById('manual_purchase_date').value;
       const notes = document.getElementById('manual_notes').value;
+      
+      // Get all serial inputs
+      const serialInputs = document.querySelectorAll('.serial-input');
+      const serials = Array.from(serialInputs).map(input => input.value.trim()).filter(val => val !== '');
       
       if (!device) {
         showAlert('error', 'Please enter a device name.');
         return;
       }
+      
+      // If no serials entered but quantity > 0, create entries without serials
+      if (serials.length === 0 && quantity > 0) {
+        for (let i = 0; i < quantity; i++) {
+          addSingleItem(device, color, storage, '', carrier, condition, price, notes, location);
+        }
+        showAlert('success', `Added ${quantity} items to ${location}`);
+        
+        // Add to purchase log
+        addToPurchaseLog(device, color, storage, quantity, price, carrier, condition);
+        
+        // Add to cash drawer activity if price is provided
+        if (price && parseFloat(price) > 0) {
+          addCashDrawerActivity('purchase', `Purchased ${quantity} x ${device} ${color} ${storage}`, parseFloat(price) * quantity * -1);
+        }
+        
+        return;
+      }
+      
+      // If serials are entered, add each one individually
+      for (const serial of serials) {
+        addSingleItem(device, color, storage, serial, carrier, condition, price, notes, location);
+      }
+      
+      showAlert('success', `Added ${serials.length} items to ${location}`);
+      
+      // Add to purchase log
+      addToPurchaseLog(device, color, storage, 0, price, carrier, condition, serials);
+      
+      // Add to cash drawer activity if price is provided
+      if (price && parseFloat(price) > 0) {
+        addCashDrawerActivity('purchase', `Purchased ${serials.length} x ${device} ${color} ${storage}`, parseFloat(price) * serials.length * -1);
+      }
+    }
+    
+    // Add cash drawer activity
+    function addCashDrawerActivity(type, description, amount) {
+      // Create activity object
+      const activity = {
+        id: generateId(),
+        timestamp: new Date().toISOString(),
+        type: type,
+        description: description,
+        amount: amount
+      };
+      
+      // Get existing activities from localStorage
+      let activities = JSON.parse(localStorage.getItem('cashDrawerActivities') || '[]');
+      
+      // Add new activity to the beginning
+      activities.unshift(activity);
+      
+      // Save back to localStorage
+      localStorage.setItem('cashDrawerActivities', JSON.stringify(activities));
+      
+      // Update cash drawer balance
+      let balance = parseFloat(localStorage.getItem('cashDrawerBalance') || '0');
+      balance += amount;
+      localStorage.setItem('cashDrawerBalance', balance.toString());
+      
+      // Update cash drawer display if it's currently visible
+      const cashDrawerTab = document.getElementById('cash-drawer-tab');
+      if (cashDrawerTab && cashDrawerTab.classList.contains('active')) {
+        updateCashDrawerDisplay();
+      }
+      
+      // Add system log
+      addSystemLog('cash_drawer', `${type}: ${description} - $${Math.abs(amount).toFixed(2)}`);
+    }
+    
+    // Update cash drawer display
+    function updateCashDrawerDisplay() {
+      const cashDrawerContent = document.getElementById('cash-drawer-content');
+      if (!cashDrawerContent) return;
+      
+      // Get activities and balance from localStorage
+      const activities = JSON.parse(localStorage.getItem('cashDrawerActivities') || '[]');
+      const balance = parseFloat(localStorage.getItem('cashDrawerBalance') || '0');
+      
+      // Create balance display
+      let html = `
+        <div class="cash-drawer-balance">
+          <h3>Current Balance: <span class="${balance >= 0 ? 'positive' : 'negative'}">$${balance.toFixed(2)}</span></h3>
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Date/Time</th>
+                <th>Type</th>
+                <th>Description</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+      
+      // Add activities
+      if (activities.length === 0) {
+        html += `
+          <tr>
+            <td colspan="4" class="empty-message">No transactions yet</td>
+          </tr>
+        `;
+      } else {
+        activities.forEach(activity => {
+          const date = new Date(activity.timestamp);
+          const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+          
+          html += `
+            <tr>
+              <td>${formattedDate}</td>
+              <td>${escapeHtml(activity.type)}</td>
+              <td>${escapeHtml(activity.description)}</td>
+              <td class="${activity.amount >= 0 ? 'positive' : 'negative'}">$${Math.abs(activity.amount).toFixed(2)}</td>
+            </tr>
+          `;
+        });
+      }
+      
+      html += `
+            </tbody>
+          </table>
+        </div>
+      `;
+      
+      cashDrawerContent.innerHTML = html;
+    }
+    
+    // Helper function to add a single item
+    function addSingleItem(device, color, storage, serial, carrier, condition, price, notes, location) {
+      // Current timestamp for acquisition date
+      const acquisitionDate = new Date().toISOString();
       
       // Convert dollars to cents
       const priceCents = price ? Math.round(parseFloat(price) * 100) : 0;
@@ -3238,27 +3685,67 @@
       showLoader();
       
       // Add system log
-      addSystemLog('transfer', `Transferred ${itemIds.length} items to warehouse. Notes: ${notes}`);
+      addSystemLog('transfer', `Initiated transfer of ${itemIds.length} items to warehouse. Notes: ${notes}`);
       
       // Simulate transfer request (in a real app, this would be a fetch to the server)
       setTimeout(() => {
         hideLoader();
         document.getElementById('transfer-modal').classList.remove('show');
         
-        // Update items in local state
+        // Get items to transfer
+        const itemsToTransfer = itemIds.map(id => {
+          const item = state.inventory.find(i => i.id == id);
+          return item;
+        }).filter(Boolean);
+        
+        // Add to pending transfers
+        addToPendingTransfers(itemsToTransfer, notes);
+        
+        // Update items in local state to pending_transfer status
         itemIds.forEach(id => {
           const item = state.inventory.find(i => i.id == id);
           if (item) {
-            item.location = 'warehouse';
-            item.status = 'transferred';
+            item.status = 'pending_transfer';
           }
         });
         
-        showAlert('success', `Transferred ${itemIds.length} items to warehouse.`);
+        showAlert('success', `${itemIds.length} items pending transfer to warehouse.`);
         
         // Re-render inventory
         renderInventory();
       }, 1000);
+    }
+    
+    // Add items to pending transfers
+    function addToPendingTransfers(items, notes) {
+      // Get existing pending transfers from localStorage
+      let pendingTransfers = JSON.parse(localStorage.getItem('pendingTransfers') || '[]');
+      
+      // Add new transfers with timestamp
+      const timestamp = new Date().toISOString();
+      
+      items.forEach(item => {
+        pendingTransfers.push({
+          id: item.id,
+          imei: item.imei,
+          device: item.device,
+          color: item.color,
+          storage: item.storage,
+          condition: item.condition,
+          carrier: item.carrier,
+          transferDate: timestamp,
+          notes: notes
+        });
+      });
+      
+      // Save updated pending transfers
+      localStorage.setItem('pendingTransfers', JSON.stringify(pendingTransfers));
+      
+      // Update pending transfers display if warehouse is unlocked
+      if (app.warehouseUnlocked) {
+        updatePendingTransfersDisplay();
+      }
+    }
     }
 
     // Load cash drawer
@@ -3486,8 +3973,236 @@
       // Add system log
       addSystemLog('access', 'Warehouse access granted');
       
+      // Update pending transfers display
+      updatePendingTransfersDisplay();
+      
       // Load warehouse data
       loadWarehouse();
+    }
+    
+    // Update the pending transfers display
+    function updatePendingTransfersDisplay() {
+      const tableBody = document.getElementById('pending-transfers-table-body');
+      const noTransfersDiv = document.getElementById('no-pending-transfers');
+      
+      if (!tableBody || !noTransfersDiv) return;
+      
+      // Get pending transfers from localStorage
+      const pendingTransfers = JSON.parse(localStorage.getItem('pendingTransfers') || '[]');
+      
+      // Clear existing rows
+      tableBody.innerHTML = '';
+      
+      if (pendingTransfers.length === 0) {
+        // Show "no pending transfers" message
+        noTransfersDiv.style.display = 'block';
+        return;
+      }
+      
+      // Hide "no pending transfers" message
+      noTransfersDiv.style.display = 'none';
+      
+      // Add rows for each pending transfer
+      pendingTransfers.forEach(item => {
+        const row = document.createElement('tr');
+        
+        // Format date
+        const date = new Date(item.transferDate);
+        const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        
+        row.innerHTML = `
+          <td><input type="checkbox" class="pending-transfer-checkbox" data-id="${item.id}"></td>
+          <td>${escapeHtml(item.imei || '')}</td>
+          <td>${escapeHtml(item.device)} ${escapeHtml(item.color)} ${escapeHtml(item.storage)}</td>
+          <td>${escapeHtml(item.condition)}</td>
+          <td>${escapeHtml(item.carrier)}</td>
+          <td>${formattedDate}</td>
+          <td>
+            <button class="transfer-action-btn transfer-accept-btn" data-id="${item.id}">
+              <i class="fas fa-check"></i> Accept
+            </button>
+            <button class="transfer-action-btn transfer-reject-btn" data-id="${item.id}">
+              <i class="fas fa-times"></i> Reject
+            </button>
+          </td>
+        `;
+        
+        tableBody.appendChild(row);
+      });
+      
+      // Add event listeners to the accept/reject buttons
+      const acceptButtons = tableBody.querySelectorAll('.transfer-accept-btn');
+      const rejectButtons = tableBody.querySelectorAll('.transfer-reject-btn');
+      
+      acceptButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          const id = this.getAttribute('data-id');
+          acceptTransfer(id);
+        });
+      });
+      
+      rejectButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          const id = this.getAttribute('data-id');
+          rejectTransfer(id);
+        });
+      });
+    }
+    
+    // Accept a pending transfer
+    function acceptTransfer(id) {
+      // Get pending transfers from localStorage
+      let pendingTransfers = JSON.parse(localStorage.getItem('pendingTransfers') || '[]');
+      
+      // Find the transfer to accept
+      const transferIndex = pendingTransfers.findIndex(item => item.id === id);
+      
+      if (transferIndex === -1) {
+        showAlert('error', 'Transfer not found.');
+        return;
+      }
+      
+      const transfer = pendingTransfers[transferIndex];
+      
+      // Remove from pending transfers
+      pendingTransfers.splice(transferIndex, 1);
+      localStorage.setItem('pendingTransfers', JSON.stringify(pendingTransfers));
+      
+      // Update item status in inventory
+      const inventoryItems = state.inventory.filter(item => item.id === id);
+      if (inventoryItems.length > 0) {
+        inventoryItems.forEach(item => {
+          item.status = 'in_stock';
+          item.location = 'warehouse';
+        });
+      }
+      
+      // Add system log
+      addSystemLog('transfer_accept', `Accepted transfer of ${transfer.device} ${transfer.color} ${transfer.storage} to warehouse.`);
+      
+      // Show success message
+      showAlert('success', 'Transfer accepted successfully.');
+      
+      // Update pending transfers display
+      updatePendingTransfersDisplay();
+      
+      // Refresh warehouse inventory
+      loadWarehouse();
+    }
+    
+    // Reject a pending transfer
+    function rejectTransfer(id) {
+      // Get pending transfers from localStorage
+      let pendingTransfers = JSON.parse(localStorage.getItem('pendingTransfers') || '[]');
+      
+      // Find the transfer to reject
+      const transferIndex = pendingTransfers.findIndex(item => item.id === id);
+      
+      if (transferIndex === -1) {
+        showAlert('error', 'Transfer not found.');
+        return;
+      }
+      
+      const transfer = pendingTransfers[transferIndex];
+      
+      // Remove from pending transfers
+      pendingTransfers.splice(transferIndex, 1);
+      localStorage.setItem('pendingTransfers', JSON.stringify(pendingTransfers));
+      
+      // Update item status in inventory
+      const inventoryItems = state.inventory.filter(item => item.id === id);
+      if (inventoryItems.length > 0) {
+        inventoryItems.forEach(item => {
+          item.status = 'in_stock';
+          item.location = 'store';
+        });
+      }
+      
+      // Add system log
+      addSystemLog('transfer_reject', `Rejected transfer of ${transfer.device} ${transfer.color} ${transfer.storage} to warehouse.`);
+      
+      // Show success message
+      showAlert('success', 'Transfer rejected successfully.');
+      
+      // Update pending transfers display
+      updatePendingTransfersDisplay();
+    }
+    
+    // Accept all pending transfers
+    function acceptAllTransfers() {
+      // Get pending transfers from localStorage
+      const pendingTransfers = JSON.parse(localStorage.getItem('pendingTransfers') || '[]');
+      
+      if (pendingTransfers.length === 0) {
+        showAlert('warning', 'No pending transfers to accept.');
+        return;
+      }
+      
+      // Get IDs of all pending transfers
+      const transferIds = pendingTransfers.map(item => item.id);
+      
+      // Update all items in inventory
+      transferIds.forEach(id => {
+        const inventoryItems = state.inventory.filter(item => item.id === id);
+        if (inventoryItems.length > 0) {
+          inventoryItems.forEach(item => {
+            item.status = 'in_stock';
+            item.location = 'warehouse';
+          });
+        }
+      });
+      
+      // Add system log
+      addSystemLog('transfer_accept_all', `Accepted all ${pendingTransfers.length} pending transfers to warehouse.`);
+      
+      // Clear pending transfers
+      localStorage.setItem('pendingTransfers', '[]');
+      
+      // Show success message
+      showAlert('success', `${pendingTransfers.length} transfers accepted successfully.`);
+      
+      // Update pending transfers display
+      updatePendingTransfersDisplay();
+      
+      // Refresh warehouse inventory
+      loadWarehouse();
+    }
+    
+    // Reject all pending transfers
+    function rejectAllTransfers() {
+      // Get pending transfers from localStorage
+      const pendingTransfers = JSON.parse(localStorage.getItem('pendingTransfers') || '[]');
+      
+      if (pendingTransfers.length === 0) {
+        showAlert('warning', 'No pending transfers to reject.');
+        return;
+      }
+      
+      // Get IDs of all pending transfers
+      const transferIds = pendingTransfers.map(item => item.id);
+      
+      // Update all items in inventory
+      transferIds.forEach(id => {
+        const inventoryItems = state.inventory.filter(item => item.id === id);
+        if (inventoryItems.length > 0) {
+          inventoryItems.forEach(item => {
+            item.status = 'in_stock';
+            item.location = 'store';
+          });
+        }
+      });
+      
+      // Add system log
+      addSystemLog('transfer_reject_all', `Rejected all ${pendingTransfers.length} pending transfers to warehouse.`);
+      
+      // Clear pending transfers
+      localStorage.setItem('pendingTransfers', '[]');
+      
+      // Show success message
+      showAlert('success', `${pendingTransfers.length} transfers rejected successfully.`);
+      
+      // Update pending transfers display
+      updatePendingTransfersDisplay();
     }
 
     // Load warehouse
@@ -3960,6 +4675,17 @@
       // Reset button
       document.getElementById('reset-btn').addEventListener('click', resetLookup);
       
+      // Warehouse pending transfers buttons
+      const acceptAllBtn = document.getElementById('accept-all-transfers-btn');
+      if (acceptAllBtn) {
+        acceptAllBtn.addEventListener('click', acceptAllTransfers);
+      }
+      
+      const rejectAllBtn = document.getElementById('reject-all-transfers-btn');
+      if (rejectAllBtn) {
+        rejectAllBtn.addEventListener('click', rejectAllTransfers);
+      }
+      
       // Add manual item (old)
       if (document.getElementById('addManual')) {
         document.getElementById('addManual').addEventListener('click', addManualItem);
@@ -4187,15 +4913,32 @@
 
     // Check API balance
     function checkBalance() {
-      // Since we're in a demo environment without a real API, we'll simulate the balance
+      // Get the actual API balance
       const balanceValue = document.getElementById('balance-value');
       
-      // Set a simulated balance
-      const simulatedBalance = 1250.00;
-      balanceValue.textContent = '$' + simulatedBalance.toFixed(2);
+      // Function to fetch API balance
+      async function fetchAPIBalance() {
+        try {
+          // Replace with your actual API endpoint
+          const response = await fetch('https://api.example.com/balance');
+          if (!response.ok) {
+            throw new Error('Failed to fetch balance');
+          }
+          const data = await response.json();
+          balanceValue.textContent = '$' + (data.balance || 0).toFixed(2);
+          balanceValue.classList.remove('error');
+        } catch (error) {
+          console.error('Error fetching API balance:', error);
+          balanceValue.textContent = 'Error';
+          balanceValue.classList.add('error');
+        }
+      }
       
-      // Remove any error class if it exists
-      balanceValue.classList.remove('error');
+      // Initial fetch
+      fetchAPIBalance();
+      
+      // Add event listener to refresh button
+      document.getElementById('refresh-balance').addEventListener('click', fetchAPIBalance);
       
       // Add system log
       addSystemLog('api', 'API balance checked successfully');
@@ -4251,6 +4994,306 @@
       });
     }
 
+    // Setup manual entry typeahead for device names
+    function setupManualDeviceTypeahead() {
+      const deviceInput = document.getElementById('manual_device');
+      const deviceResults = document.getElementById('manual-device-results');
+      
+      // Comprehensive device suggestions
+      const devices = [
+        // iPhones
+        'iPhone 15 Pro Max', 'iPhone 15 Pro', 'iPhone 15 Plus', 'iPhone 15',
+        'iPhone 14 Pro Max', 'iPhone 14 Pro', 'iPhone 14 Plus', 'iPhone 14',
+        'iPhone 13 Pro Max', 'iPhone 13 Pro', 'iPhone 13', 'iPhone 13 Mini',
+        'iPhone SE (3rd gen)', 'iPhone 12 Pro Max', 'iPhone 12 Pro', 'iPhone 12', 'iPhone 12 Mini',
+        
+        // iPads
+        'iPad Pro 12.9" (M2)', 'iPad Pro 11" (M2)', 'iPad Pro 12.9" (M1)', 'iPad Pro 11" (M1)',
+        'iPad Air (5th gen)', 'iPad Air (4th gen)', 'iPad Mini (6th gen)', 'iPad (10th gen)', 'iPad (9th gen)',
+        
+        // Apple Watches
+        'Apple Watch Ultra 2', 'Apple Watch Ultra', 'Apple Watch Series 9', 'Apple Watch Series 8',
+        'Apple Watch SE (2nd gen)', 'Apple Watch SE',
+        
+        // AirPods
+        'AirPods Pro (2nd gen)', 'AirPods (3rd gen)', 'AirPods (2nd gen)', 'AirPods Max',
+        
+        // MacBooks
+        'MacBook Pro 16" (M3)', 'MacBook Pro 14" (M3)', 'MacBook Pro 16" (M2)', 'MacBook Pro 14" (M2)',
+        'MacBook Air 15" (M2)', 'MacBook Air 13" (M2)', 'MacBook Air 13" (M1)',
+        
+        // Samsung Galaxy S Series
+        'Samsung Galaxy S24 Ultra', 'Samsung Galaxy S24+', 'Samsung Galaxy S24',
+        'Samsung Galaxy S23 Ultra', 'Samsung Galaxy S23+', 'Samsung Galaxy S23',
+        
+        // Samsung Foldables
+        'Samsung Galaxy Z Fold5', 'Samsung Galaxy Z Fold4', 
+        'Samsung Galaxy Z Flip5', 'Samsung Galaxy Z Flip4',
+        
+        // Samsung Tablets
+        'Samsung Galaxy Tab S9 Ultra', 'Samsung Galaxy Tab S9+', 'Samsung Galaxy Tab S9',
+        'Samsung Galaxy Tab S8 Ultra', 'Samsung Galaxy Tab S8+', 'Samsung Galaxy Tab S8',
+        
+        // Samsung Watches
+        'Samsung Galaxy Watch6', 'Samsung Galaxy Watch6 Classic',
+        'Samsung Galaxy Watch5', 'Samsung Galaxy Watch5 Pro',
+        
+        // Samsung Buds
+        'Samsung Galaxy Buds3 Pro', 'Samsung Galaxy Buds3',
+        'Samsung Galaxy Buds2 Pro', 'Samsung Galaxy Buds2'
+      ];
+      
+      if (!deviceInput || !deviceResults) return;
+      
+      deviceInput.addEventListener('input', function() {
+        const value = this.value.toLowerCase();
+        deviceResults.innerHTML = '';
+        
+        if (value) {
+          const matches = devices.filter(device => 
+            device.toLowerCase().includes(value)
+          ).slice(0, 10);
+          
+          matches.forEach(match => {
+            const item = document.createElement('div');
+            item.className = 'typeahead-item';
+            item.textContent = match;
+            item.addEventListener('click', function() {
+              deviceInput.value = match;
+              deviceResults.classList.remove('show');
+            });
+            deviceResults.appendChild(item);
+          });
+          deviceResults.classList.add('show');
+        } else {
+          deviceResults.classList.remove('show');
+        }
+      });
+      
+      deviceInput.addEventListener('focus', function() {
+        if (this.value && deviceResults.children.length) {
+          deviceResults.classList.add('show');
+        }
+      });
+      
+      document.addEventListener('click', function(e) {
+        if (e.target !== deviceInput && e.target !== deviceResults) {
+          deviceResults.classList.remove('show');
+        }
+      });
+    }
+    
+    // Setup manual entry typeahead for colors
+    function setupManualColorTypeahead() {
+      const colorInput = document.getElementById('manual_color');
+      const colorResults = document.getElementById('manual-color-results');
+      
+      // Official Apple and Samsung colors since 2023
+      const colors = [
+        // iPhone 15 Pro/Pro Max colors
+        'Natural Titanium', 'Blue Titanium', 'White Titanium', 'Black Titanium',
+        
+        // iPhone 15/15 Plus colors
+        'Pink', 'Yellow', 'Green', 'Blue', 'Black',
+        
+        // iPhone 14 Pro/Pro Max colors
+        'Deep Purple', 'Gold', 'Silver', 'Space Black',
+        
+        // iPhone 14/14 Plus colors
+        'Midnight', 'Starlight', 'Blue', 'Purple', 'Red', 'Yellow',
+        
+        // iPad Pro colors
+        'Silver', 'Space Gray',
+        
+        // iPad Air colors
+        'Space Gray', 'Starlight', 'Pink', 'Purple', 'Blue',
+        
+        // Apple Watch Ultra colors
+        'Natural Titanium', 'Titanium',
+        
+        // Apple Watch Series 9 colors
+        'Midnight', 'Starlight', 'Silver', 'Red', 'Pink', 'Gold', 'Graphite',
+        
+        // AirPods Max colors
+        'Silver', 'Space Gray', 'Pink', 'Green', 'Sky Blue',
+        
+        // MacBook colors
+        'Silver', 'Space Gray', 'Midnight', 'Starlight',
+        
+        // Samsung Galaxy S24 Ultra colors
+        'Titanium Black', 'Titanium Gray', 'Titanium Violet', 'Titanium Yellow',
+        
+        // Samsung Galaxy S24/S24+ colors
+        'Onyx Black', 'Marble Gray', 'Cobalt Violet', 'Amber Yellow',
+        
+        // Samsung Galaxy S23 Ultra colors
+        'Phantom Black', 'Cream', 'Green', 'Lavender', 'Graphite', 'Sky Blue', 'Lime', 'Red',
+        
+        // Samsung Galaxy Z Fold5/Flip5 colors
+        'Icy Blue', 'Cream', 'Phantom Black', 'Lavender', 'Gray', 'Blue', 'Green', 'Yellow'
+      ];
+      
+      if (!colorInput || !colorResults) return;
+      
+      colorInput.addEventListener('input', function() {
+        const value = this.value.toLowerCase();
+        colorResults.innerHTML = '';
+        
+        if (value) {
+          const matches = colors.filter(color => 
+            color.toLowerCase().includes(value)
+          ).slice(0, 10);
+          
+          matches.forEach(match => {
+            const item = document.createElement('div');
+            item.className = 'typeahead-item';
+            item.textContent = match;
+            item.addEventListener('click', function() {
+              colorInput.value = match;
+              colorResults.classList.remove('show');
+            });
+            colorResults.appendChild(item);
+          });
+          colorResults.classList.add('show');
+        } else {
+          colorResults.classList.remove('show');
+        }
+      });
+      
+      colorInput.addEventListener('focus', function() {
+        if (this.value && colorResults.children.length) {
+          colorResults.classList.add('show');
+        }
+      });
+      
+      document.addEventListener('click', function(e) {
+        if (e.target !== colorInput && e.target !== colorResults) {
+          colorResults.classList.remove('show');
+        }
+      });
+    }
+    
+    // Setup serial number input handling for batch entry
+    function setupSerialInputs() {
+      const quantityInput = document.getElementById('manual_quantity');
+      const serialContainer = document.getElementById('serial-inputs-container');
+      
+      if (!quantityInput || !serialContainer) return;
+      
+      // Initial serial input is already in the DOM
+      const initialInput = document.getElementById('manual_imei');
+      if (initialInput) {
+        initialInput.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            const nextInput = this.nextElementSibling;
+            if (nextInput && nextInput.classList.contains('serial-input')) {
+              nextInput.focus();
+            } else {
+              // Create a new input if this is the last one
+              addSerialInput();
+            }
+          }
+        });
+      }
+      
+      // Function to add a new serial input
+      function addSerialInput() {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'serial-input';
+        input.placeholder = 'IMEI or Serial Number';
+        
+        input.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            const nextInput = this.nextElementSibling;
+            if (nextInput && nextInput.classList.contains('serial-input')) {
+              nextInput.focus();
+            } else {
+              // Create a new input if this is the last one
+              addSerialInput();
+            }
+          }
+        });
+        
+        serialContainer.appendChild(input);
+        input.focus();
+      }
+      
+      // Update serial inputs when quantity changes
+      quantityInput.addEventListener('change', function() {
+        const quantity = parseInt(this.value) || 1;
+        const currentInputs = serialContainer.querySelectorAll('.serial-input');
+        
+        // Add inputs if needed
+        if (quantity > currentInputs.length) {
+          for (let i = currentInputs.length; i < quantity; i++) {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'serial-input';
+            input.placeholder = 'IMEI or Serial Number';
+            
+            input.addEventListener('keydown', function(e) {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                const nextInput = this.nextElementSibling;
+                if (nextInput && nextInput.classList.contains('serial-input')) {
+                  nextInput.focus();
+                } else {
+                  // Create a new input if this is the last one and we're below quantity
+                  if (serialContainer.querySelectorAll('.serial-input').length < quantity) {
+                    addSerialInput();
+                  }
+                }
+              }
+            });
+            
+            serialContainer.appendChild(input);
+          }
+        }
+        // Remove inputs if too many
+        else if (quantity < currentInputs.length) {
+          for (let i = currentInputs.length - 1; i >= quantity; i--) {
+            serialContainer.removeChild(currentInputs[i]);
+          }
+        }
+      });
+    }
+    
+    // Setup purchase log event listeners
+    function setupPurchaseLogEventListeners() {
+      // Export purchase log to CSV
+      const exportBtn = document.getElementById('export-purchase-log-btn');
+      if (exportBtn) {
+        exportBtn.addEventListener('click', exportPurchaseLogToCSV);
+      }
+      
+      // Print purchase log
+      const printBtn = document.getElementById('print-purchase-log-btn');
+      if (printBtn) {
+        printBtn.addEventListener('click', function() {
+          window.print();
+        });
+      }
+      
+      // Apply purchase log filters
+      const applyFilterBtn = document.getElementById('apply-purchase-log-filter');
+      if (applyFilterBtn) {
+        applyFilterBtn.addEventListener('click', filterPurchaseLog);
+      }
+      
+      // Search input
+      const searchInput = document.getElementById('purchase-log-search');
+      if (searchInput) {
+        searchInput.addEventListener('input', function() {
+          // Debounce search to avoid excessive filtering
+          clearTimeout(this.searchTimeout);
+          this.searchTimeout = setTimeout(filterPurchaseLog, 300);
+        });
+      }
+    }
+    
     document.addEventListener('DOMContentLoaded', function() {
       // Setup device typeahead
       setupDeviceTypeahead();
@@ -4258,11 +5301,24 @@
       // Setup color typeahead
       setupColorTypeahead();
       
+      // Setup manual entry typeahead
+      setupManualDeviceTypeahead();
+      setupManualColorTypeahead();
+      
+      // Setup serial inputs for batch entry
+      setupSerialInputs();
+      
       // Setup event listeners
       setupEventListeners();
       
       // Setup sub-tab event listeners
       setupSubTabEventListeners();
+      
+      // Setup purchase log event listeners
+      setupPurchaseLogEventListeners();
+      
+      // Initialize purchase log table
+      updatePurchaseLogTable();
       
       // Check API balance
       checkBalance();
