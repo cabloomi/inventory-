@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Enhanced Inventory Management</title>
+  <title>Complete Inventory Management System</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <style>
     :root {
@@ -610,6 +611,9 @@
       <a href="#lookup" class="tab active" data-tab="lookup">
         <i class="fas fa-search"></i> IMEI Lookup
       </a>
+      <a href="#manual-entry" class="tab" data-tab="manual-entry">
+        <i class="fas fa-edit"></i> Manual Entry
+      </a>
       <a href="#inventory" class="tab" data-tab="inventory">
         <i class="fas fa-boxes"></i> Inventory
       </a>
@@ -618,6 +622,12 @@
       </a>
       <a href="#warehouse" class="tab" data-tab="warehouse">
         <i class="fas fa-warehouse"></i> Warehouse
+      </a>
+      <a href="#customers" class="tab" data-tab="customers">
+        <i class="fas fa-users"></i> Customers
+      </a>
+      <a href="#invoices" class="tab" data-tab="invoices">
+        <i class="fas fa-file-invoice-dollar"></i> Invoices
       </a>
       <a href="#admin" class="tab" data-tab="admin">
         <i class="fas fa-shield-alt"></i> Admin
@@ -629,6 +639,137 @@
     </div>
     
     <!-- IMEI Lookup Tab -->
+    <!-- Manual Entry Tab -->
+    <div id="manual-entry-tab" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <h2>Manual Item Entry</h2>
+          <div class="btn-group">
+            <button class="btn" id="add-to-store-btn">
+              <i class="fas fa-store"></i> Add to Store
+            </button>
+            <button class="btn" id="add-to-warehouse-btn">
+              <i class="fas fa-warehouse"></i> Add to Warehouse
+            </button>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div>
+            <label>Device</label>
+            <div class="typeahead">
+              <input type="text" id="manual_device" placeholder="Device Name">
+              <div class="typeahead-results" id="manual-device-results"></div>
+            </div>
+          </div>
+          <div>
+            <label>Color</label>
+            <div class="typeahead">
+              <input type="text" id="manual_color" placeholder="Color">
+              <div class="typeahead-results" id="manual-color-results"></div>
+            </div>
+          </div>
+          <div>
+            <label>Storage</label>
+            <input type="text" id="manual_storage" placeholder="Storage">
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div>
+            <label>IMEI/Serial</label>
+            <input type="text" id="manual_imei" placeholder="IMEI or Serial Number">
+          </div>
+          <div>
+            <label>Carrier</label>
+            <select id="manual_carrier">
+              <option value="Unknown">Select Carrier</option>
+              <option value="Unlocked">Unlocked</option>
+              <option value="AT&T">AT&T</option>
+              <option value="Verizon">Verizon</option>
+              <option value="T-Mobile">T-Mobile</option>
+              <option value="Sprint">Sprint</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label>Condition</label>
+            <select id="manual_condition">
+              <option value="NIB">NIB - New In Box</option>
+              <option value="A">A - Like New</option>
+              <option value="B" selected>B - Good</option>
+              <option value="C">C - Fair</option>
+              <option value="D">D - Poor</option>
+            </select>
+          </div>
+          <div>
+            <label>Device Type</label>
+            <select id="manual_type">
+              <option value="Phone" selected>Phone</option>
+              <option value="Tablet">Tablet</option>
+              <option value="Laptop">Laptop</option>
+              <option value="Smartwatch">Smartwatch</option>
+              <option value="Accessory">Accessory</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div>
+            <label>Price Paid</label>
+            <input type="number" id="manual_price" placeholder="Price" step="0.01">
+          </div>
+          <div>
+            <label>Quantity</label>
+            <input type="number" id="manual_quantity" value="1" min="1">
+          </div>
+          <div>
+            <label>Purchase Date</label>
+            <input type="date" id="manual_purchase_date">
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="manual_notes" rows="2" placeholder="Additional notes..."></textarea>
+        </div>
+        
+        <div class="form-group">
+          <button class="btn" id="manual-add-item-btn">
+            <i class="fas fa-plus"></i> Add Item
+          </button>
+          <button class="btn btn-secondary" id="manual-clear-btn">
+            <i class="fas fa-times"></i> Clear Form
+          </button>
+        </div>
+      </div>
+      
+      <div class="card">
+        <div class="card-header">
+          <h2>Recently Added Items</h2>
+        </div>
+        
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>IMEI/Serial</th>
+                <th>Device</th>
+                <th>Condition</th>
+                <th>Location</th>
+                <th>Price Paid</th>
+                <th>Date Added</th>
+              </tr>
+            </thead>
+            <tbody id="recent-items-body">
+              <!-- Recently added items will be dynamically inserted here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    
     <div id="lookup-tab" class="tab-content active">
       <div class="card">
         <div class="card-header">
@@ -888,6 +1029,64 @@
                 <option value="transferred">Transferred</option>
               </select>
             </div>
+            <div style="flex: 0 0 auto;">
+              <select id="warehouse-carrier-filter">
+                <option value="all">All Carriers</option>
+                <option value="Unlocked">Unlocked</option>
+                <option value="AT&T">AT&T</option>
+                <option value="Verizon">Verizon</option>
+                <option value="T-Mobile">T-Mobile</option>
+                <option value="Sprint">Sprint</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div style="flex: 0 0 auto;">
+              <select id="warehouse-condition-filter">
+                <option value="all">All Conditions</option>
+                <option value="NIB">NIB - New</option>
+                <option value="A">A - Like New</option>
+                <option value="B">B - Good</option>
+                <option value="C">C - Fair</option>
+                <option value="D">D - Poor</option>
+              </select>
+            </div>
+            <div style="flex: 0 0 auto;">
+              <select id="warehouse-type-filter">
+                <option value="all">All Types</option>
+                <option value="Phone">Phones</option>
+                <option value="Tablet">Tablets</option>
+                <option value="Laptop">Laptops</option>
+                <option value="Smartwatch">Smartwatches</option>
+                <option value="Accessory">Accessories</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="form-row" style="margin-top: 10px;">
+            <div style="flex: 0 0 auto;">
+              <button class="btn" id="mass-select-all-btn">
+                <i class="fas fa-check-square"></i> Select All
+              </button>
+            </div>
+            <div style="flex: 0 0 auto;">
+              <button class="btn" id="mass-deselect-all-btn">
+                <i class="fas fa-square"></i> Deselect All
+              </button>
+            </div>
+            <div style="flex: 0 0 auto;">
+              <button class="btn" id="create-invoice-from-selected-btn" disabled>
+                <i class="fas fa-file-invoice-dollar"></i> Create Invoice from Selected
+              </button>
+            </div>
+            <div style="flex: 0 0 auto;">
+              <button class="btn btn-secondary" id="export-selected-btn" disabled>
+                <i class="fas fa-file-export"></i> Export Selected
+              </button>
+            </div>
+            <div style="margin-left: auto; display: flex; align-items: center;">
+              <span id="selected-count">0 items selected</span>
+            </div>
           </div>
           
           <div class="table-responsive">
@@ -991,6 +1190,306 @@
     </div>
     
     <!-- Admin Tab -->
+    <!-- Customers Tab -->
+    <div id="customers-tab" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <h2>Customer Management</h2>
+          <button class="btn" id="add-customer-btn">
+            <i class="fas fa-user-plus"></i> Add Customer
+          </button>
+        </div>
+        
+        <div class="form-row">
+          <div>
+            <input type="text" id="customer-search" placeholder="Search customers...">
+          </div>
+          <div style="flex: 0 0 auto;">
+            <button class="btn" id="customer-search-btn">
+              <i class="fas fa-search"></i> Search
+            </button>
+          </div>
+        </div>
+        
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Customer Name</th>
+                <th>Contact</th>
+                <th>Email</th>
+                <th>Balance</th>
+                <th>Last Purchase</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="customers-body">
+              <!-- Customers will be dynamically inserted here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <div id="customer-detail" class="card" style="display: none;">
+        <div class="card-header">
+          <h2>Customer Details: <span id="customer-detail-name"></span></h2>
+          <div class="btn-group">
+            <button class="btn" id="create-invoice-btn">
+              <i class="fas fa-file-invoice-dollar"></i> Create Invoice
+            </button>
+            <button class="btn" id="record-payment-btn">
+              <i class="fas fa-money-bill-wave"></i> Record Payment
+            </button>
+          </div>
+        </div>
+        
+        <div class="customer-summary">
+          <div class="customer-info">
+            <p><strong>Contact:</strong> <span id="customer-detail-contact"></span></p>
+            <p><strong>Email:</strong> <span id="customer-detail-email"></span></p>
+            <p><strong>Address:</strong> <span id="customer-detail-address"></span></p>
+            <p><strong>Notes:</strong> <span id="customer-detail-notes"></span></p>
+          </div>
+          
+          <div class="customer-balance">
+            <div class="balance-card">
+              <div class="balance-title">Current Balance</div>
+              <div class="balance-amount" id="customer-detail-balance">$0.00</div>
+            </div>
+            <div class="balance-card">
+              <div class="balance-title">Total Purchases</div>
+              <div class="balance-amount" id="customer-detail-purchases">$0.00</div>
+            </div>
+            <div class="balance-card">
+              <div class="balance-title">Total Payments</div>
+              <div class="balance-amount" id="customer-detail-payments">$0.00</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="tabs sub-tabs">
+          <a href="#customer-invoices" class="sub-tab active" data-subtab="customer-invoices">Invoices</a>
+          <a href="#customer-payments" class="sub-tab" data-subtab="customer-payments">Payments</a>
+          <a href="#customer-statement" class="sub-tab" data-subtab="customer-statement">Statement</a>
+        </div>
+        
+        <div id="customer-invoices-tab" class="sub-tab-content active">
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Invoice #</th>
+                  <th>Date</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="customer-invoices-body">
+                <!-- Invoices will be dynamically inserted here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <div id="customer-payments-tab" class="sub-tab-content">
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Payment #</th>
+                  <th>Date</th>
+                  <th>Amount</th>
+                  <th>Method</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="customer-payments-body">
+                <!-- Payments will be dynamically inserted here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <div id="customer-statement-tab" class="sub-tab-content">
+          <div class="statement-controls">
+            <div class="form-row">
+              <div>
+                <label>Start Date</label>
+                <input type="date" id="statement-start-date">
+              </div>
+              <div>
+                <label>End Date</label>
+                <input type="date" id="statement-end-date">
+              </div>
+              <div style="align-self: flex-end;">
+                <button class="btn" id="generate-statement-btn">
+                  <i class="fas fa-file-alt"></i> Generate Statement
+                </button>
+              </div>
+              <div style="align-self: flex-end;">
+                <button class="btn btn-secondary" id="print-statement-btn">
+                  <i class="fas fa-print"></i> Print
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div id="statement-content" class="statement-preview">
+            <!-- Statement will be dynamically inserted here -->
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Invoices Tab -->
+    <div id="invoices-tab" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <h2>Invoice Management</h2>
+          <button class="btn" id="create-new-invoice-btn">
+            <i class="fas fa-plus"></i> Create New Invoice
+          </button>
+        </div>
+        
+        <div class="form-row">
+          <div>
+            <input type="text" id="invoice-search" placeholder="Search invoices...">
+          </div>
+          <div style="flex: 0 0 auto;">
+            <button class="btn" id="invoice-search-btn">
+              <i class="fas fa-search"></i> Search
+            </button>
+          </div>
+          <div style="flex: 0 0 auto;">
+            <select id="invoice-status-filter">
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="paid">Paid</option>
+              <option value="partial">Partial</option>
+              <option value="overdue">Overdue</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Invoice #</th>
+                <th>Customer</th>
+                <th>Date</th>
+                <th>Due Date</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="invoices-body">
+              <!-- Invoices will be dynamically inserted here -->
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="pagination" id="invoices-pagination">
+          <!-- Pagination will be dynamically inserted here -->
+        </div>
+      </div>
+      
+      <div id="invoice-detail" class="card" style="display: none;">
+        <div class="card-header">
+          <h2>Invoice #<span id="invoice-detail-number"></span></h2>
+          <div class="btn-group">
+            <button class="btn" id="edit-invoice-btn">
+              <i class="fas fa-edit"></i> Edit
+            </button>
+            <button class="btn" id="record-invoice-payment-btn">
+              <i class="fas fa-money-bill-wave"></i> Record Payment
+            </button>
+            <button class="btn btn-secondary" id="print-invoice-btn">
+              <i class="fas fa-print"></i> Print
+            </button>
+            <button class="btn btn-secondary" id="download-invoice-pdf-btn">
+              <i class="fas fa-file-pdf"></i> Download PDF
+            </button>
+          </div>
+        </div>
+        
+        <div class="invoice-summary">
+          <div class="invoice-info">
+            <p><strong>Customer:</strong> <span id="invoice-detail-customer"></span></p>
+            <p><strong>Date:</strong> <span id="invoice-detail-date"></span></p>
+            <p><strong>Due Date:</strong> <span id="invoice-detail-due-date"></span></p>
+            <p><strong>Status:</strong> <span id="invoice-detail-status"></span></p>
+          </div>
+          
+          <div class="invoice-totals">
+            <div class="total-card">
+              <div class="total-title">Subtotal</div>
+              <div class="total-amount" id="invoice-detail-subtotal">$0.00</div>
+            </div>
+            <div class="total-card">
+              <div class="total-title">Tax</div>
+              <div class="total-amount" id="invoice-detail-tax">$0.00</div>
+            </div>
+            <div class="total-card">
+              <div class="total-title">Total</div>
+              <div class="total-amount" id="invoice-detail-total">$0.00</div>
+            </div>
+            <div class="total-card">
+              <div class="total-title">Paid</div>
+              <div class="total-amount" id="invoice-detail-paid">$0.00</div>
+            </div>
+            <div class="total-card">
+              <div class="total-title">Balance</div>
+              <div class="total-amount" id="invoice-detail-balance">$0.00</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Description</th>
+                <th>Quantity</th>
+                <th>Unit Price</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody id="invoice-items-body">
+              <!-- Invoice items will be dynamically inserted here -->
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="invoice-notes">
+          <h3>Notes</h3>
+          <p id="invoice-detail-notes"></p>
+        </div>
+        
+        <div class="invoice-payments">
+          <h3>Payments</h3>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Amount</th>
+                  <th>Method</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="invoice-payments-body">
+                <!-- Invoice payments will be dynamically inserted here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    
     <div id="admin-tab" class="tab-content">
       <div class="card">
         <div class="card-header">
@@ -1012,43 +1511,259 @@
         </div>
         
         <div id="admin-content" style="display: none;">
-          <div class="form-row">
-            <div>
-              <select id="log-filter">
-                <option value="all">All Actions</option>
-                <option value="inventory_add">Inventory Add</option>
-                <option value="inventory_edit">Inventory Edit</option>
-                <option value="inventory_delete">Inventory Delete</option>
-                <option value="transfer">Transfer</option>
-                <option value="cash_drawer">Cash Drawer</option>
-                <option value="transaction">Transaction</option>
-              </select>
+          <div class="tabs sub-tabs">
+            <a href="#admin-dashboard" class="sub-tab active" data-subtab="admin-dashboard">Dashboard</a>
+            <a href="#admin-logs" class="sub-tab" data-subtab="admin-logs">System Logs</a>
+            <a href="#admin-settings" class="sub-tab" data-subtab="admin-settings">Settings</a>
+            <a href="#admin-users" class="sub-tab" data-subtab="admin-users">Users</a>
+            <a href="#admin-backup" class="sub-tab" data-subtab="admin-backup">Backup & Restore</a>
+          </div>
+          
+          <div id="admin-dashboard-tab" class="sub-tab-content active">
+            <div class="dashboard-summary">
+              <div class="summary-card">
+                <div class="summary-icon"><i class="fas fa-boxes"></i></div>
+                <div class="summary-title">Total Inventory</div>
+                <div class="summary-value" id="dashboard-total-inventory">0</div>
+              </div>
+              <div class="summary-card">
+                <div class="summary-icon"><i class="fas fa-dollar-sign"></i></div>
+                <div class="summary-title">Inventory Value</div>
+                <div class="summary-value" id="dashboard-inventory-value">$0.00</div>
+              </div>
+              <div class="summary-card">
+                <div class="summary-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+                <div class="summary-title">Outstanding Invoices</div>
+                <div class="summary-value" id="dashboard-outstanding-invoices">$0.00</div>
+              </div>
+              <div class="summary-card">
+                <div class="summary-icon"><i class="fas fa-chart-line"></i></div>
+                <div class="summary-title">Monthly Sales</div>
+                <div class="summary-value" id="dashboard-monthly-sales">$0.00</div>
+              </div>
             </div>
-            <div style="flex: 0 0 auto;">
-              <button class="btn" id="filter-logs-btn">
-                <i class="fas fa-filter"></i> Filter
-              </button>
+            
+            <div class="dashboard-charts">
+              <div class="chart-container">
+                <h3>Most Purchased Devices</h3>
+                <canvas id="top-devices-chart"></canvas>
+              </div>
+              <div class="chart-container">
+                <h3>Sales by Month</h3>
+                <canvas id="sales-chart"></canvas>
+              </div>
+            </div>
+            
+            <div class="dashboard-charts">
+              <div class="chart-container">
+                <h3>Inventory by Condition</h3>
+                <canvas id="condition-chart"></canvas>
+              </div>
+              <div class="chart-container">
+                <h3>Inventory by Carrier</h3>
+                <canvas id="carrier-chart"></canvas>
+              </div>
+            </div>
+            
+            <div class="admin-panel" style="margin-top: 20px;">
+              <h3>Low Stock Alerts</h3>
+              <div class="table-responsive">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Device</th>
+                      <th>Current Stock</th>
+                      <th>Threshold</th>
+                      <th>Last Received</th>
+                    </tr>
+                  </thead>
+                  <tbody id="low-stock-body">
+                    <!-- Low stock alerts will be dynamically inserted here -->
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
           
-          <div class="admin-panel">
-            <h3>System Logs</h3>
-            <div id="system-logs">
-              <!-- Logs will be dynamically inserted here -->
+          <div id="admin-logs-tab" class="sub-tab-content">
+            <div class="form-row">
+              <div>
+                <select id="log-filter">
+                  <option value="all">All Actions</option>
+                  <option value="inventory_add">Inventory Add</option>
+                  <option value="inventory_edit">Inventory Edit</option>
+                  <option value="inventory_delete">Inventory Delete</option>
+                  <option value="transfer">Transfer</option>
+                  <option value="cash_drawer">Cash Drawer</option>
+                  <option value="transaction">Transaction</option>
+                  <option value="invoice">Invoice</option>
+                  <option value="payment">Payment</option>
+                  <option value="customer">Customer</option>
+                </select>
+              </div>
+              <div style="flex: 0 0 auto;">
+                <button class="btn" id="filter-logs-btn">
+                  <i class="fas fa-filter"></i> Filter
+                </button>
+              </div>
+              <div style="flex: 0 0 auto;">
+                <button class="btn btn-secondary" id="export-logs-btn">
+                  <i class="fas fa-file-export"></i> Export Logs
+                </button>
+              </div>
+            </div>
+            
+            <div class="admin-panel">
+              <h3>System Logs</h3>
+              <div id="system-logs">
+                <!-- Logs will be dynamically inserted here -->
+              </div>
             </div>
           </div>
           
-          <div class="admin-panel" style="margin-top: 20px;">
-            <h3>System Settings</h3>
-            <div class="form-group">
-              <label>Default Device Condition Age (days)</label>
-              <input type="number" id="condition-age-setting" value="45" min="1">
-              <p class="muted">Devices older than this will be automatically marked as B grade</p>
+          <div id="admin-settings-tab" class="sub-tab-content">
+            <div class="admin-panel">
+              <h3>System Settings</h3>
+              <div class="form-group">
+                <label>Default Device Condition Age (days)</label>
+                <input type="number" id="condition-age-setting" value="45" min="1">
+                <p class="muted">Devices older than this will be automatically marked as B grade</p>
+              </div>
+              <div class="form-group">
+                <label>Tax Rate (%)</label>
+                <input type="number" id="tax-rate-setting" value="8.25" min="0" step="0.01">
+                <p class="muted">Default tax rate for invoices</p>
+              </div>
+              <div class="form-group">
+                <label>Invoice Due Days</label>
+                <input type="number" id="invoice-due-days-setting" value="30" min="1">
+                <p class="muted">Default number of days until invoice is due</p>
+              </div>
+              <div class="form-group">
+                <label>Low Stock Threshold</label>
+                <input type="number" id="low-stock-threshold-setting" value="5" min="1">
+                <p class="muted">Alert when stock falls below this number</p>
+              </div>
+              <div class="form-group">
+                <label>Company Name</label>
+                <input type="text" id="company-name-setting" placeholder="Your Company Name">
+                <p class="muted">Used on invoices and statements</p>
+              </div>
+              <div class="form-group">
+                <label>Company Address</label>
+                <textarea id="company-address-setting" rows="3" placeholder="Your Company Address"></textarea>
+                <p class="muted">Used on invoices and statements</p>
+              </div>
+              <div class="form-group">
+                <label>Company Phone</label>
+                <input type="text" id="company-phone-setting" placeholder="Your Company Phone">
+                <p class="muted">Used on invoices and statements</p>
+              </div>
+              <div class="form-group">
+                <label>Company Email</label>
+                <input type="email" id="company-email-setting" placeholder="Your Company Email">
+                <p class="muted">Used on invoices and statements</p>
+              </div>
+              <div class="form-group">
+                <button class="btn" id="save-settings-btn">
+                  <i class="fas fa-save"></i> Save Settings
+                </button>
+              </div>
             </div>
-            <div class="form-group">
-              <button class="btn" id="save-settings-btn">
-                <i class="fas fa-save"></i> Save Settings
-              </button>
+          </div>
+          
+          <div id="admin-users-tab" class="sub-tab-content">
+            <div class="admin-panel">
+              <h3>User Management</h3>
+              <div class="form-row">
+                <div style="flex: 0 0 auto;">
+                  <button class="btn" id="add-user-btn">
+                    <i class="fas fa-user-plus"></i> Add User
+                  </button>
+                </div>
+              </div>
+              
+              <div class="table-responsive">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Username</th>
+                      <th>Role</th>
+                      <th>Email</th>
+                      <th>Last Login</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="users-body">
+                    <!-- Users will be dynamically inserted here -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          
+          <div id="admin-backup-tab" class="sub-tab-content">
+            <div class="admin-panel">
+              <h3>Backup & Restore</h3>
+              <div class="form-row">
+                <div style="flex: 0 0 auto;">
+                  <button class="btn" id="create-backup-btn">
+                    <i class="fas fa-download"></i> Create Backup
+                  </button>
+                </div>
+                <div style="flex: 0 0 auto;">
+                  <button class="btn btn-secondary" id="restore-backup-btn">
+                    <i class="fas fa-upload"></i> Restore from Backup
+                  </button>
+                </div>
+              </div>
+              
+              <div class="form-group" style="margin-top: 20px;">
+                <h4>Previous Backups</h4>
+                <div class="table-responsive">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Size</th>
+                        <th>Created By</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="backups-body">
+                      <!-- Backups will be dynamically inserted here -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <h4>Automatic Backups</h4>
+                <div class="checkbox-group">
+                  <input type="checkbox" id="auto-backup-enabled" checked>
+                  <label for="auto-backup-enabled">Enable automatic backups</label>
+                </div>
+                <div class="form-row">
+                  <div>
+                    <label>Frequency</label>
+                    <select id="auto-backup-frequency">
+                      <option value="daily">Daily</option>
+                      <option value="weekly" selected>Weekly</option>
+                      <option value="monthly">Monthly</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Retention Period (days)</label>
+                    <input type="number" id="auto-backup-retention" value="30" min="1">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <button class="btn" id="save-backup-settings-btn">
+                    <i class="fas fa-save"></i> Save Backup Settings
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1229,6 +1944,20 @@
   </div>
   
   <script>
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyBxJlPJHgOvxCvMjGN_kxLvg-ylxR2tHH8",
+      authDomain: "inventory-system-demo.firebaseapp.com",
+      projectId: "inventory-system-demo",
+      storageBucket: "inventory-system-demo.appspot.com",
+      messagingSenderId: "123456789012",
+      appId: "1:123456789012:web:1234567890abcdef"
+    };
+    
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    
     // State management
     const state = {
       rows: [],
@@ -1237,6 +1966,9 @@
       cashDrawer: null,
       transactions: [],
       logs: [],
+      customers: [],
+      invoices: [],
+      payments: [],
       currentPage: 1,
       itemsPerPage: 10,
       filters: {
@@ -1246,13 +1978,50 @@
       },
       warehouseFilters: {
         status: 'in_stock',
+        carrier: 'all',
+        condition: 'all',
+        deviceType: 'all',
+        search: ''
+      },
+      invoiceFilters: {
+        status: 'all',
+        search: ''
+      },
+      customerFilters: {
         search: ''
       },
       settings: {
-        conditionAgeDays: 45
+        conditionAgeDays: 45,
+        taxRate: 8.25,
+        invoiceDueDays: 30,
+        lowStockThreshold: 5,
+        companyName: 'Your Company Name',
+        companyAddress: 'Your Company Address',
+        companyPhone: 'Your Company Phone',
+        companyEmail: 'Your Company Email'
       },
+      users: [
+        {
+          id: 'admin',
+          username: 'admin',
+          role: 'admin',
+          email: 'admin@example.com',
+          lastLogin: new Date().toISOString(),
+          status: 'active'
+        }
+      ],
+      backups: [],
+      backupSettings: {
+        autoBackupEnabled: true,
+        frequency: 'weekly',
+        retention: 30
+      },
+      selectedItems: [],
       adminUnlocked: false,
-      warehouseUnlocked: false
+      warehouseUnlocked: false,
+      currentCustomer: null,
+      currentInvoice: null,
+      dataInitialized: false
     };
     
     // Helper functions
@@ -2056,6 +2825,138 @@
       // Focus device input for next entry
       document.getElementById('m_device').focus();
     }
+    
+    // Add item from manual entry tab
+    function addItemFromManualEntry(location) {
+      const device = document.getElementById('manual_device').value.trim();
+      const color = document.getElementById('manual_color').value.trim();
+      const storage = document.getElementById('manual_storage').value.trim();
+      const imei = document.getElementById('manual_imei').value.trim();
+      const carrier = document.getElementById('manual_carrier').value;
+      const condition = document.getElementById('manual_condition').value;
+      const deviceType = document.getElementById('manual_type').value;
+      const price = document.getElementById('manual_price').value;
+      const quantity = parseInt(document.getElementById('manual_quantity').value) || 1;
+      const purchaseDate = document.getElementById('manual_purchase_date').value;
+      const notes = document.getElementById('manual_notes').value;
+      
+      if (!device) {
+        showAlert('error', 'Please enter a device name.');
+        return;
+      }
+      
+      // Convert dollars to cents
+      const priceCents = price ? Math.round(parseFloat(price) * 100) : 0;
+      
+      // Show loader
+      showLoader();
+      
+      // Add system log
+      addSystemLog('inventory_add', `Added ${quantity} ${device} directly to ${location}. Price: ${formatMoney(priceCents)}`);
+      
+      // Create items (one per quantity)
+      const newItems = [];
+      for (let i = 0; i < quantity; i++) {
+        const newItem = {
+          id: Date.now() + i,
+          imei: imei || `MANUAL-${Date.now()}-${i}`,
+          device_display: device,
+          color: color,
+          storage: storage,
+          condition: condition,
+          carrier: carrier,
+          device_type: deviceType,
+          price_paid_cents: priceCents,
+          status: 'in_stock',
+          location: location,
+          created_at: new Date().toISOString(),
+          purchase_date: purchaseDate || new Date().toISOString(),
+          notes: notes
+        };
+        
+        // Add to inventory
+        state.inventory.push(newItem);
+        newItems.push(newItem);
+      }
+      
+      // If adding to store, deduct from cash drawer
+      if (location === 'store' && state.cashDrawer) {
+        state.cashDrawer.expected_amount_cents -= priceCents * quantity;
+      }
+      
+      // Save data
+      saveAllData()
+        .then(() => {
+          hideLoader();
+          
+          // Clear form
+          document.getElementById('manual_device').value = '';
+          document.getElementById('manual_color').value = '';
+          document.getElementById('manual_storage').value = '';
+          document.getElementById('manual_imei').value = '';
+          document.getElementById('manual_carrier').value = 'Unknown';
+          document.getElementById('manual_condition').value = 'B';
+          document.getElementById('manual_type').value = 'Phone';
+          document.getElementById('manual_price').value = '';
+          document.getElementById('manual_quantity').value = '1';
+          document.getElementById('manual_purchase_date').value = '';
+          document.getElementById('manual_notes').value = '';
+          
+          showAlert('success', `Added ${quantity} item(s) to ${location}.`);
+          
+          // Render recent items
+          renderRecentItems();
+          
+          // Update cash drawer if needed
+          if (location === 'store' && state.cashDrawer) {
+            renderCashDrawer();
+          }
+        })
+        .catch(error => {
+          hideLoader();
+          console.error('Error adding item:', error);
+          showAlert('error', 'Error adding item: ' + error.message);
+        });
+    }
+    
+    // Render recent items
+    function renderRecentItems() {
+      const tbody = document.getElementById('recent-items-body');
+      tbody.innerHTML = '';
+      
+      // Get the 10 most recent items
+      const recentItems = [...state.inventory]
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 10);
+      
+      if (recentItems.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td colspan="6" class="center">No items added yet</td>
+        `;
+        tbody.appendChild(row);
+        return;
+      }
+      
+      recentItems.forEach(item => {
+        const row = document.createElement('tr');
+        
+        row.innerHTML = `
+          <td><code>${escapeHtml(item.imei || '')}</code></td>
+          <td>${escapeHtml(item.device_display || '')}</td>
+          <td><span class="tag">${escapeHtml(item.condition || 'B')}</span></td>
+          <td>
+            <span class="tag ${item.location === 'store' ? 'info' : 'warning'}">
+              ${item.location === 'store' ? 'Store' : 'Warehouse'}
+            </span>
+          </td>
+          <td class="right">${formatMoney(item.price_paid_cents || 0)}</td>
+          <td>${formatShortDate(item.created_at)}</td>
+        `;
+        
+        tbody.appendChild(row);
+      });
+    }
 
     // Load inventory
     function loadInventory() {
@@ -2285,25 +3186,829 @@
       // Add system log
       addSystemLog('transfer', `Transferred ${itemIds.length} items to warehouse. Notes: ${notes}`);
       
-      // Simulate transfer request (in a real app, this would be a fetch to the server)
-      setTimeout(() => {
-        hideLoader();
-        document.getElementById('transfer-modal').classList.remove('show');
-        
-        // Update items in local state
-        itemIds.forEach(id => {
-          const item = state.inventory.find(i => i.id == id);
-          if (item) {
-            item.location = 'warehouse';
-            item.status = 'transferred';
+      // Update items in local state
+      itemIds.forEach(id => {
+        const item = state.inventory.find(i => i.id == id);
+        if (item) {
+          item.location = 'warehouse';
+          item.status = 'transferred';
+        }
+      });
+      
+      // Save data
+      saveAllData()
+        .then(() => {
+          hideLoader();
+          document.getElementById('transfer-modal').classList.remove('show');
+          
+          showAlert('success', `Transferred ${itemIds.length} items to warehouse.`);
+          
+          // Re-render inventory
+          renderInventory();
+        })
+        .catch(error => {
+          hideLoader();
+          console.error('Error transferring items:', error);
+          showAlert('error', 'Error transferring items: ' + error.message);
+        });
+    }
+    
+    // Invoice functions
+    function renderInvoices() {
+      const tbody = document.getElementById('invoices-body');
+      tbody.innerHTML = '';
+      
+      // Filter invoices based on current filters
+      const filtered = state.invoices.filter(invoice => {
+        // Status filter
+        if (state.invoiceFilters.status !== 'all') {
+          // Calculate payments
+          const payments = state.payments.filter(pay => pay.invoice_id === invoice.id);
+          const totalPaid = payments.reduce((sum, pay) => sum + pay.amount_cents, 0);
+          const balance = invoice.total_cents - totalPaid;
+          
+          // Determine status
+          let status = 'pending';
+          if (balance <= 0) {
+            status = 'paid';
+          } else if (totalPaid > 0) {
+            status = 'partial';
+          } else if (new Date(invoice.due_date) < new Date()) {
+            status = 'overdue';
           }
+          
+          if (status !== state.invoiceFilters.status) {
+            return false;
+          }
+        }
+        
+        // Search filter
+        if (state.invoiceFilters.search) {
+          const search = state.invoiceFilters.search.toLowerCase();
+          const customer = state.customers.find(c => c.id === invoice.customer_id);
+          
+          return (
+            (invoice.invoice_number && invoice.invoice_number.toLowerCase().includes(search)) ||
+            (customer && customer.name && customer.name.toLowerCase().includes(search))
+          );
+        }
+        
+        return true;
+      });
+      
+      // Sort by date (newest first)
+      const sorted = [...filtered].sort((a, b) => new Date(b.date) - new Date(a.date));
+      
+      // Pagination
+      const totalPages = Math.ceil(sorted.length / state.itemsPerPage);
+      const start = (state.currentPage - 1) * state.itemsPerPage;
+      const end = start + state.itemsPerPage;
+      const paginatedItems = sorted.slice(start, end);
+      
+      if (paginatedItems.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td colspan="7" class="center">No invoices found</td>
+        `;
+        tbody.appendChild(row);
+        return;
+      }
+      
+      paginatedItems.forEach(invoice => {
+        const row = document.createElement('tr');
+        
+        // Get customer
+        const customer = state.customers.find(c => c.id === invoice.customer_id);
+        const customerName = customer ? customer.name : 'Unknown';
+        
+        // Calculate payments
+        const payments = state.payments.filter(pay => pay.invoice_id === invoice.id);
+        const totalPaid = payments.reduce((sum, pay) => sum + pay.amount_cents, 0);
+        const balance = invoice.total_cents - totalPaid;
+        
+        // Determine status
+        let status = 'pending';
+        if (balance <= 0) {
+          status = 'paid';
+        } else if (totalPaid > 0) {
+          status = 'partial';
+        } else if (new Date(invoice.due_date) < new Date()) {
+          status = 'overdue';
+        }
+        
+        row.innerHTML = `
+          <td>${escapeHtml(invoice.invoice_number)}</td>
+          <td>${escapeHtml(customerName)}</td>
+          <td>${formatShortDate(invoice.date)}</td>
+          <td>${formatShortDate(invoice.due_date)}</td>
+          <td class="right">${formatMoney(invoice.total_cents)}</td>
+          <td>
+            <span class="tag ${status === 'paid' ? 'success' : status === 'partial' ? 'warning' : status === 'overdue' ? 'error' : 'info'}">
+              ${status.charAt(0).toUpperCase() + status.slice(1)}
+            </span>
+          </td>
+          <td>
+            <button class="btn btn-secondary view-invoice" data-id="${invoice.id}">
+              <i class="fas fa-eye"></i>
+            </button>
+            <button class="btn btn-secondary edit-invoice" data-id="${invoice.id}">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-secondary print-invoice" data-id="${invoice.id}">
+              <i class="fas fa-print"></i>
+            </button>
+          </td>
+        `;
+        
+        tbody.appendChild(row);
+      });
+      
+      // Pagination controls
+      const pagination = document.getElementById('invoices-pagination');
+      pagination.innerHTML = '';
+      
+      if (totalPages > 1) {
+        const prevLink = document.createElement('a');
+        prevLink.href = '#';
+        prevLink.innerHTML = '&laquo; Prev';
+        if (state.currentPage === 1) {
+          prevLink.classList.add('disabled');
+        }
+        
+        prevLink.onclick = (e) => {
+          e.preventDefault();
+          if (state.currentPage > 1) {
+            state.currentPage--;
+            renderInvoices();
+          }
+        };
+        
+        pagination.appendChild(prevLink);
+        
+        for (let i = 1; i <= totalPages; i++) {
+          const pageLink = document.createElement('a');
+          pageLink.href = '#';
+          pageLink.innerText = i;
+          if (i === state.currentPage) {
+            pageLink.classList.add('active');
+          }
+          
+          pageLink.onclick = (e) => {
+            e.preventDefault();
+            state.currentPage = i;
+            renderInvoices();
+          };
+          
+          pagination.appendChild(pageLink);
+        }
+        
+        const nextLink = document.createElement('a');
+        nextLink.href = '#';
+        nextLink.innerHTML = 'Next &raquo;';
+        if (state.currentPage === totalPages) {
+          nextLink.classList.add('disabled');
+        }
+        
+        nextLink.onclick = (e) => {
+          e.preventDefault();
+          if (end < sorted.length) {
+            state.currentPage++;
+            renderInvoices();
+          }
+        };
+        
+        pagination.appendChild(nextLink);
+      }
+      
+      // Add event listeners to buttons
+      document.querySelectorAll('.view-invoice').forEach(button => {
+        button.addEventListener('click', function() {
+          const invoiceId = this.getAttribute('data-id');
+          viewInvoiceDetails(invoiceId);
+        });
+      });
+      
+      document.querySelectorAll('.edit-invoice').forEach(button => {
+        button.addEventListener('click', function() {
+          const invoiceId = this.getAttribute('data-id');
+          showEditInvoiceModal(invoiceId);
+        });
+      });
+      
+      document.querySelectorAll('.print-invoice').forEach(button => {
+        button.addEventListener('click', function() {
+          const invoiceId = this.getAttribute('data-id');
+          printInvoice(invoiceId);
+        });
+      });
+    }
+    
+    function viewInvoiceDetails(invoiceId) {
+      const invoice = state.invoices.find(inv => inv.id == invoiceId);
+      if (!invoice) return;
+      
+      state.currentInvoice = invoice;
+      
+      // Get customer
+      const customer = state.customers.find(c => c.id === invoice.customer_id);
+      const customerName = customer ? customer.name : 'Unknown';
+      
+      // Update invoice details
+      document.getElementById('invoice-detail-number').textContent = invoice.invoice_number;
+      document.getElementById('invoice-detail-customer').textContent = customerName;
+      document.getElementById('invoice-detail-date').textContent = formatShortDate(invoice.date);
+      document.getElementById('invoice-detail-due-date').textContent = formatShortDate(invoice.due_date);
+      
+      // Calculate payments
+      const payments = state.payments.filter(pay => pay.invoice_id === invoice.id);
+      const totalPaid = payments.reduce((sum, pay) => sum + pay.amount_cents, 0);
+      const balance = invoice.total_cents - totalPaid;
+      
+      // Determine status
+      let status = 'pending';
+      if (balance <= 0) {
+        status = 'paid';
+      } else if (totalPaid > 0) {
+        status = 'partial';
+      } else if (new Date(invoice.due_date) < new Date()) {
+        status = 'overdue';
+      }
+      
+      document.getElementById('invoice-detail-status').innerHTML = `
+        <span class="tag ${status === 'paid' ? 'success' : status === 'partial' ? 'warning' : status === 'overdue' ? 'error' : 'info'}">
+          ${status.charAt(0).toUpperCase() + status.slice(1)}
+        </span>
+      `;
+      
+      // Update financial information
+      document.getElementById('invoice-detail-subtotal').textContent = formatMoney(invoice.subtotal_cents);
+      document.getElementById('invoice-detail-tax').textContent = formatMoney(invoice.tax_cents);
+      document.getElementById('invoice-detail-total').textContent = formatMoney(invoice.total_cents);
+      document.getElementById('invoice-detail-paid').textContent = formatMoney(totalPaid);
+      document.getElementById('invoice-detail-balance').textContent = formatMoney(balance);
+      
+      // Update notes
+      document.getElementById('invoice-detail-notes').textContent = invoice.notes || '';
+      
+      // Render invoice items
+      renderInvoiceItems(invoice);
+      
+      // Render invoice payments
+      renderInvoicePayments(invoice.id);
+      
+      // Show invoice detail panel
+      document.getElementById('invoice-detail').style.display = 'block';
+    }
+    
+    function renderInvoiceItems(invoice) {
+      const tbody = document.getElementById('invoice-items-body');
+      tbody.innerHTML = '';
+      
+      if (!invoice.items || invoice.items.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td colspan="5" class="center">No items found</td>
+        `;
+        tbody.appendChild(row);
+        return;
+      }
+      
+      invoice.items.forEach(item => {
+        const row = document.createElement('tr');
+        
+        row.innerHTML = `
+          <td>${escapeHtml(item.name || '')}</td>
+          <td>${escapeHtml(item.description || '')}</td>
+          <td class="right">${item.quantity}</td>
+          <td class="right">${formatMoney(item.unit_price_cents)}</td>
+          <td class="right">${formatMoney(item.total_cents)}</td>
+        `;
+        
+        tbody.appendChild(row);
+      });
+    }
+    
+    function renderInvoicePayments(invoiceId) {
+      const tbody = document.getElementById('invoice-payments-body');
+      tbody.innerHTML = '';
+      
+      const payments = state.payments
+        .filter(pay => pay.invoice_id === invoiceId)
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+      
+      if (payments.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td colspan="4" class="center">No payments found</td>
+        `;
+        tbody.appendChild(row);
+        return;
+      }
+      
+      payments.forEach(payment => {
+        const row = document.createElement('tr');
+        
+        row.innerHTML = `
+          <td>${formatShortDate(payment.date)}</td>
+          <td class="right">${formatMoney(payment.amount_cents)}</td>
+          <td>${escapeHtml(payment.method || '')}</td>
+          <td>${escapeHtml(payment.notes || '')}</td>
+        `;
+        
+        tbody.appendChild(row);
+      });
+    }
+    
+    function showCreateInvoiceFromItemsModal() {
+      // Get selected items
+      const selectedCheckboxes = document.querySelectorAll('.warehouse-select-item:checked');
+      const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+      
+      if (selectedIds.length === 0) {
+        showAlert('error', 'Please select at least one item to create an invoice.');
+        return;
+      }
+      
+      // Get selected items
+      const selectedItems = state.inventory.filter(item => selectedIds.includes(item.id.toString()));
+      
+      // Create modal HTML
+      const modalHTML = `
+        <div class="modal" id="create-invoice-modal">
+          <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+              <h3>Create Invoice</h3>
+              <button class="modal-close" id="create-invoice-modal-close">&times;</button>
+            </div>
+            
+            <div class="form-group">
+              <label>Customer</label>
+              <select id="invoice-customer" required>
+                <option value="">Select Customer</option>
+                ${state.customers.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')}
+              </select>
+            </div>
+            
+            <div class="form-row">
+              <div>
+                <label>Invoice Date</label>
+                <input type="date" id="invoice-date" value="${new Date().toISOString().slice(0, 10)}" required>
+              </div>
+              <div>
+                <label>Due Date</label>
+                <input type="date" id="invoice-due-date" value="${new Date(Date.now() + state.settings.invoiceDueDays * 86400000).toISOString().slice(0, 10)}" required>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label>Selected Items (${selectedItems.length})</label>
+              <div class="table-responsive">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Item</th>
+                      <th>Description</th>
+                      <th>Quantity</th>
+                      <th>Unit Price</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody id="invoice-items-preview">
+                    ${selectedItems.map((item, idx) => `
+                      <tr>
+                        <td>${escapeHtml(item.device_display || '')}</td>
+                        <td>
+                          <input type="text" id="item-description-${idx}" value="${escapeHtml(item.color || '')} ${escapeHtml(item.storage || '')} ${escapeHtml(item.condition || 'B')} ${escapeHtml(item.carrier || 'Unknown')}">
+                        </td>
+                        <td>
+                          <input type="number" id="item-quantity-${idx}" value="1" min="1" style="width: 60px;" data-idx="${idx}">
+                        </td>
+                        <td>
+                          <input type="number" id="item-price-${idx}" value="${(item.price_paid_cents / 100).toFixed(2)}" step="0.01" min="0" style="width: 100px;" data-idx="${idx}">
+                        </td>
+                        <td class="right item-total" data-idx="${idx}">${formatMoney(item.price_paid_cents)}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colspan="4" class="right">Subtotal:</td>
+                      <td class="right" id="invoice-subtotal">${formatMoney(selectedItems.reduce((sum, item) => sum + (item.price_paid_cents || 0), 0))}</td>
+                    </tr>
+                    <tr>
+                      <td colspan="3" class="right">Tax Rate:</td>
+                      <td>
+                        <input type="number" id="invoice-tax-rate" value="${state.settings.taxRate}" step="0.01" min="0" style="width: 100px;">%
+                      </td>
+                      <td class="right" id="invoice-tax">${formatMoney(selectedItems.reduce((sum, item) => sum + (item.price_paid_cents || 0), 0) * state.settings.taxRate / 100)}</td>
+                    </tr>
+                    <tr>
+                      <td colspan="4" class="right"><strong>Total:</strong></td>
+                      <td class="right" id="invoice-total"><strong>${formatMoney(selectedItems.reduce((sum, item) => sum + (item.price_paid_cents || 0), 0) * (1 + state.settings.taxRate / 100))}</strong></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label>Notes</label>
+              <textarea id="invoice-notes" rows="3" placeholder="Invoice notes..."></textarea>
+            </div>
+            
+            <div class="modal-footer">
+              <button class="btn btn-secondary" id="create-invoice-modal-cancel">Cancel</button>
+              <button class="btn" id="create-invoice-confirm">Create Invoice</button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      // Add modal to body
+      const modalContainer = document.createElement('div');
+      modalContainer.innerHTML = modalHTML;
+      document.body.appendChild(modalContainer.firstChild);
+      
+      // Show modal
+      document.getElementById('create-invoice-modal').classList.add('show');
+      
+      // Add event listeners
+      document.getElementById('create-invoice-modal-close').addEventListener('click', () => {
+        document.getElementById('create-invoice-modal').remove();
+      });
+      
+      document.getElementById('create-invoice-modal-cancel').addEventListener('click', () => {
+        document.getElementById('create-invoice-modal').remove();
+      });
+      
+      document.getElementById('create-invoice-confirm').addEventListener('click', () => {
+        createInvoiceFromItems(selectedIds);
+      });
+      
+      // Add event listeners to quantity and price inputs
+      selectedItems.forEach((item, idx) => {
+        document.getElementById(`item-quantity-${idx}`).addEventListener('input', updateInvoiceTotals);
+        document.getElementById(`item-price-${idx}`).addEventListener('input', updateInvoiceTotals);
+      });
+      
+      // Add event listener to tax rate input
+      document.getElementById('invoice-tax-rate').addEventListener('input', updateInvoiceTotals);
+    }
+    
+    function updateInvoiceTotals() {
+      // Calculate item totals
+      const itemRows = document.querySelectorAll('#invoice-items-preview tr');
+      let subtotal = 0;
+      
+      itemRows.forEach((row, idx) => {
+        const quantity = parseInt(document.getElementById(`item-quantity-${idx}`).value) || 1;
+        const price = parseFloat(document.getElementById(`item-price-${idx}`).value) || 0;
+        const total = quantity * price * 100; // Convert to cents
+        
+        document.querySelector(`.item-total[data-idx="${idx}"]`).textContent = formatMoney(total);
+        subtotal += total;
+      });
+      
+      // Update subtotal
+      document.getElementById('invoice-subtotal').textContent = formatMoney(subtotal);
+      
+      // Calculate tax
+      const taxRate = parseFloat(document.getElementById('invoice-tax-rate').value) || 0;
+      const tax = subtotal * taxRate / 100;
+      document.getElementById('invoice-tax').textContent = formatMoney(tax);
+      
+      // Update total
+      document.getElementById('invoice-total').textContent = formatMoney(subtotal + tax);
+    }
+    
+    function createInvoiceFromItems(selectedIds) {
+      const customerId = document.getElementById('invoice-customer').value;
+      const invoiceDate = document.getElementById('invoice-date').value;
+      const invoiceDueDate = document.getElementById('invoice-due-date').value;
+      const notes = document.getElementById('invoice-notes').value;
+      
+      if (!customerId) {
+        showAlert('error', 'Please select a customer.');
+        return;
+      }
+      
+      if (!invoiceDate) {
+        showAlert('error', 'Please enter an invoice date.');
+        return;
+      }
+      
+      if (!invoiceDueDate) {
+        showAlert('error', 'Please enter a due date.');
+        return;
+      }
+      
+      // Get selected items
+      const selectedItems = state.inventory.filter(item => selectedIds.includes(item.id.toString()));
+      
+      // Create invoice items
+      const invoiceItems = [];
+      let subtotalCents = 0;
+      
+      selectedItems.forEach((item, idx) => {
+        const quantity = parseInt(document.getElementById(`item-quantity-${idx}`).value) || 1;
+        const unitPrice = parseFloat(document.getElementById(`item-price-${idx}`).value) || 0;
+        const description = document.getElementById(`item-description-${idx}`).value;
+        const totalCents = Math.round(quantity * unitPrice * 100);
+        
+        invoiceItems.push({
+          id: Date.now() + idx,
+          inventory_id: item.id,
+          name: item.device_display || '',
+          description: description,
+          quantity: quantity,
+          unit_price_cents: Math.round(unitPrice * 100),
+          total_cents: totalCents
         });
         
-        showAlert('success', `Transferred ${itemIds.length} items to warehouse.`);
-        
-        // Re-render inventory
-        renderInventory();
-      }, 1000);
+        subtotalCents += totalCents;
+      });
+      
+      // Calculate tax
+      const taxRate = parseFloat(document.getElementById('invoice-tax-rate').value) || 0;
+      const taxCents = Math.round(subtotalCents * taxRate / 100);
+      const totalCents = subtotalCents + taxCents;
+      
+      // Create invoice number
+      const invoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
+      
+      // Create invoice
+      const invoice = {
+        id: Date.now(),
+        invoice_number: invoiceNumber,
+        customer_id: customerId,
+        date: invoiceDate,
+        due_date: invoiceDueDate,
+        subtotal_cents: subtotalCents,
+        tax_cents: taxCents,
+        total_cents: totalCents,
+        notes: notes,
+        items: invoiceItems,
+        created_at: new Date().toISOString()
+      };
+      
+      // Show loader
+      showLoader();
+      
+      // Add invoice to state
+      state.invoices.push(invoice);
+      
+      // Update inventory items status
+      selectedIds.forEach(id => {
+        const item = state.inventory.find(i => i.id == id);
+        if (item) {
+          item.status = 'sold';
+        }
+      });
+      
+      // Add system log
+      addSystemLog('invoice', `Created invoice ${invoiceNumber} for ${selectedItems.length} items. Total: ${formatMoney(totalCents)}`);
+      
+      // Save data
+      saveAllData()
+        .then(() => {
+          hideLoader();
+          document.getElementById('create-invoice-modal').remove();
+          
+          showAlert('success', `Invoice ${invoiceNumber} created successfully.`);
+          
+          // Navigate to invoices tab
+          document.querySelector('.tab[data-tab="invoices"]').click();
+        })
+        .catch(error => {
+          hideLoader();
+          console.error('Error creating invoice:', error);
+          showAlert('error', 'Error creating invoice: ' + error.message);
+        });
+    }
+    
+    function printInvoice(invoiceId) {
+      const invoice = state.invoices.find(inv => inv.id == invoiceId);
+      if (!invoice) return;
+      
+      // Get customer
+      const customer = state.customers.find(c => c.id === invoice.customer_id);
+      
+      // Calculate payments
+      const payments = state.payments.filter(pay => pay.invoice_id === invoice.id);
+      const totalPaid = payments.reduce((sum, pay) => sum + pay.amount_cents, 0);
+      const balance = invoice.total_cents - totalPaid;
+      
+      // Determine status
+      let status = 'pending';
+      if (balance <= 0) {
+        status = 'paid';
+      } else if (totalPaid > 0) {
+        status = 'partial';
+      } else if (new Date(invoice.due_date) < new Date()) {
+        status = 'overdue';
+      }
+      
+      // Create printable invoice
+      const printWindow = window.open('', '_blank');
+      
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Invoice ${invoice.invoice_number}</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              margin: 0;
+              padding: 20px;
+              color: #333;
+            }
+            .invoice-header {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 30px;
+            }
+            .company-info {
+              flex: 1;
+            }
+            .invoice-info {
+              text-align: right;
+            }
+            .invoice-title {
+              font-size: 24px;
+              font-weight: bold;
+              margin-bottom: 10px;
+              color: #18344a;
+            }
+            .customer-info {
+              margin-bottom: 30px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 30px;
+            }
+            th, td {
+              padding: 10px;
+              text-align: left;
+              border-bottom: 1px solid #ddd;
+            }
+            th {
+              background-color: #f2f2f2;
+            }
+            .text-right {
+              text-align: right;
+            }
+            .totals {
+              width: 300px;
+              margin-left: auto;
+            }
+            .totals table {
+              margin-bottom: 0;
+            }
+            .total-row {
+              font-weight: bold;
+            }
+            .notes {
+              margin-top: 30px;
+              padding-top: 10px;
+              border-top: 1px solid #ddd;
+            }
+            .status {
+              display: inline-block;
+              padding: 5px 10px;
+              border-radius: 4px;
+              font-weight: bold;
+              text-transform: uppercase;
+              font-size: 12px;
+            }
+            .status-paid {
+              background-color: #d4edda;
+              color: #155724;
+            }
+            .status-partial {
+              background-color: #fff3cd;
+              color: #856404;
+            }
+            .status-pending {
+              background-color: #d1ecf1;
+              color: #0c5460;
+            }
+            .status-overdue {
+              background-color: #f8d7da;
+              color: #721c24;
+            }
+            .footer {
+              margin-top: 50px;
+              text-align: center;
+              font-size: 12px;
+              color: #777;
+            }
+            @media print {
+              body {
+                padding: 0;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              @page {
+                margin: 20mm;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="invoice-header">
+            <div class="company-info">
+              <div class="invoice-title">${escapeHtml(state.settings.companyName || 'Your Company Name')}</div>
+              <div>${escapeHtml(state.settings.companyAddress || 'Your Company Address')}</div>
+              <div>Phone: ${escapeHtml(state.settings.companyPhone || '')}</div>
+              <div>Email: ${escapeHtml(state.settings.companyEmail || '')}</div>
+            </div>
+            <div class="invoice-info">
+              <div class="invoice-title">INVOICE</div>
+              <div><strong>Invoice #:</strong> ${escapeHtml(invoice.invoice_number)}</div>
+              <div><strong>Date:</strong> ${formatShortDate(invoice.date)}</div>
+              <div><strong>Due Date:</strong> ${formatShortDate(invoice.due_date)}</div>
+              <div><strong>Status:</strong> <span class="status status-${status}">${status}</span></div>
+            </div>
+          </div>
+          
+          <div class="customer-info">
+            <div><strong>Bill To:</strong></div>
+            <div>${escapeHtml(customer ? customer.name : 'Unknown')}</div>
+            <div>${escapeHtml(customer ? customer.address : '')}</div>
+            <div>Phone: ${escapeHtml(customer ? customer.contact : '')}</div>
+            <div>Email: ${escapeHtml(customer ? customer.email : '')}</div>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Description</th>
+                <th class="text-right">Quantity</th>
+                <th class="text-right">Unit Price</th>
+                <th class="text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${invoice.items.map(item => `
+                <tr>
+                  <td>${escapeHtml(item.name || '')}</td>
+                  <td>${escapeHtml(item.description || '')}</td>
+                  <td class="text-right">${item.quantity}</td>
+                  <td class="text-right">${formatMoney(item.unit_price_cents)}</td>
+                  <td class="text-right">${formatMoney(item.total_cents)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          
+          <div class="totals">
+            <table>
+              <tr>
+                <td>Subtotal:</td>
+                <td class="text-right">${formatMoney(invoice.subtotal_cents)}</td>
+              </tr>
+              <tr>
+                <td>Tax:</td>
+                <td class="text-right">${formatMoney(invoice.tax_cents)}</td>
+              </tr>
+              <tr class="total-row">
+                <td>Total:</td>
+                <td class="text-right">${formatMoney(invoice.total_cents)}</td>
+              </tr>
+              <tr>
+                <td>Amount Paid:</td>
+                <td class="text-right">${formatMoney(totalPaid)}</td>
+              </tr>
+              <tr class="total-row">
+                <td>Balance Due:</td>
+                <td class="text-right">${formatMoney(balance)}</td>
+              </tr>
+            </table>
+          </div>
+          
+          ${invoice.notes ? `
+            <div class="notes">
+              <div><strong>Notes:</strong></div>
+              <div>${escapeHtml(invoice.notes)}</div>
+            </div>
+          ` : ''}
+          
+          <div class="footer">
+            Thank you for your business!
+          </div>
+        </body>
+        </html>
+      `);
+      
+      printWindow.document.close();
+      
+      // Wait for content to load then print
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
     }
 
     // Load cash drawer
@@ -2564,6 +4269,21 @@
           return false;
         }
         
+        // Carrier filter
+        if (state.warehouseFilters.carrier !== 'all' && item.carrier !== state.warehouseFilters.carrier) {
+          return false;
+        }
+        
+        // Condition filter
+        if (state.warehouseFilters.condition !== 'all' && item.condition !== state.warehouseFilters.condition) {
+          return false;
+        }
+        
+        // Device type filter
+        if (state.warehouseFilters.deviceType !== 'all' && item.device_type !== state.warehouseFilters.deviceType) {
+          return false;
+        }
+        
         // Search filter
         if (state.warehouseFilters.search) {
           const search = state.warehouseFilters.search.toLowerCase();
@@ -2582,17 +4302,37 @@
       const end = start + state.itemsPerPage;
       const paginatedItems = filtered.slice(start, end);
       
+      // Reset selected items
+      state.selectedItems = [];
+      
+      // Update selected count
+      updateSelectedCount();
+      
+      if (paginatedItems.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td colspan="9" class="center">No items found</td>
+        `;
+        tbody.appendChild(row);
+        return;
+      }
+      
       // Render items
       paginatedItems.forEach(item => {
         const row = document.createElement('tr');
+        
+        // Determine if item is new or used
+        const isNew = item.condition === 'NIB';
         
         row.innerHTML = `
           <td>
             <input type="checkbox" class="warehouse-select-item" value="${item.id}">
           </td>
           <td><code>${escapeHtml(item.imei || '')}</code></td>
-          <td>${escapeHtml(item.device_display || '')}</td>
-          <td><span class="tag">${escapeHtml(item.condition || 'B')}</span></td>
+          <td>${escapeHtml(item.device_display || '')}
+            <div class="muted">${escapeHtml(item.device_type || 'Phone')}</div>
+          </td>
+          <td><span class="tag ${isNew ? 'success' : ''}">${escapeHtml(item.condition || 'B')}</span></td>
           <td><span class="tag">${escapeHtml(item.carrier || 'Unknown')}</span></td>
           <td class="right">${formatMoney(item.price_paid_cents || 0)}</td>
           <td>
@@ -2675,6 +4415,7 @@
         document.querySelectorAll('.warehouse-select-item').forEach(checkbox => {
           checkbox.checked = this.checked;
         });
+        updateSelectedCount();
       });
       
       // Edit buttons
@@ -2684,6 +4425,77 @@
           showEditItemModal(itemId);
         });
       });
+      
+      // Checkbox change events
+      document.querySelectorAll('.warehouse-select-item').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+          updateSelectedCount();
+          
+          // Update selected items array
+          const itemId = this.value;
+          if (this.checked) {
+            if (!state.selectedItems.includes(itemId)) {
+              state.selectedItems.push(itemId);
+            }
+          } else {
+            const index = state.selectedItems.indexOf(itemId);
+            if (index !== -1) {
+              state.selectedItems.splice(index, 1);
+            }
+          }
+        });
+      });
+    }
+    
+    // Export selected items
+    function exportSelectedItems() {
+      const selectedCheckboxes = document.querySelectorAll('.warehouse-select-item:checked');
+      const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+      
+      if (selectedIds.length === 0) {
+        showAlert('error', 'Please select at least one item to export.');
+        return;
+      }
+      
+      // Get selected items
+      const selectedItems = state.inventory.filter(item => selectedIds.includes(item.id.toString()));
+      
+      // Create CSV
+      const header = ['IMEI', 'Device', 'Color', 'Storage', 'Carrier', 'Condition', 'Price Paid', 'Status', 'Location', 'Date Added', 'Notes'];
+      const lines = [header.join(',')];
+      
+      selectedItems.forEach(item => {
+        const row = [
+          item.imei || '',
+          item.device_display || '',
+          item.color || '',
+          item.storage || '',
+          item.carrier || 'Unknown',
+          item.condition || 'B',
+          (item.price_paid_cents / 100).toFixed(2),
+          item.status || 'in_stock',
+          item.location || 'warehouse',
+          item.created_at ? new Date(item.created_at).toLocaleDateString() : '',
+          item.notes || ''
+        ].map(v => JSON.stringify(String(v)).replace(/^\uFEFF/, ''));
+        
+        lines.push(row.join(','));
+      });
+      
+      const csv = lines.join('\n');
+      
+      // Download CSV
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `warehouse_export_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      
+      showAlert('success', `Exported ${selectedItems.length} items to CSV.`);
     }
 
     // Add device to warehouse
@@ -2994,6 +4806,374 @@
       });
     }
 
+    // Customer management functions
+    function renderCustomers() {
+      const tbody = document.getElementById('customers-body');
+      tbody.innerHTML = '';
+      
+      // Filter customers based on search
+      const filtered = state.customers.filter(customer => {
+        if (!state.customerFilters.search) return true;
+        
+        const search = state.customerFilters.search.toLowerCase();
+        return (
+          (customer.name && customer.name.toLowerCase().includes(search)) ||
+          (customer.email && customer.email.toLowerCase().includes(search)) ||
+          (customer.contact && customer.contact.toLowerCase().includes(search))
+        );
+      });
+      
+      if (filtered.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td colspan="6" class="center">No customers found</td>
+        `;
+        tbody.appendChild(row);
+        return;
+      }
+      
+      filtered.forEach(customer => {
+        const row = document.createElement('tr');
+        
+        // Calculate balance
+        const invoices = state.invoices.filter(inv => inv.customer_id === customer.id);
+        const totalInvoiced = invoices.reduce((sum, inv) => sum + inv.total_cents, 0);
+        
+        const payments = state.payments.filter(pay => pay.customer_id === customer.id);
+        const totalPaid = payments.reduce((sum, pay) => sum + pay.amount_cents, 0);
+        
+        const balance = totalInvoiced - totalPaid;
+        
+        // Find last purchase
+        const lastInvoice = invoices.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+        const lastPurchaseDate = lastInvoice ? formatShortDate(lastInvoice.date) : 'N/A';
+        
+        row.innerHTML = `
+          <td>${escapeHtml(customer.name || '')}</td>
+          <td>${escapeHtml(customer.contact || '')}</td>
+          <td>${escapeHtml(customer.email || '')}</td>
+          <td class="right ${balance > 0 ? 'error' : ''}">${formatMoney(balance)}</td>
+          <td>${lastPurchaseDate}</td>
+          <td>
+            <button class="btn btn-secondary view-customer" data-id="${customer.id}">
+              <i class="fas fa-eye"></i>
+            </button>
+            <button class="btn btn-secondary edit-customer" data-id="${customer.id}">
+              <i class="fas fa-edit"></i>
+            </button>
+          </td>
+        `;
+        
+        tbody.appendChild(row);
+      });
+      
+      // Add event listeners to buttons
+      document.querySelectorAll('.view-customer').forEach(button => {
+        button.addEventListener('click', function() {
+          const customerId = this.getAttribute('data-id');
+          viewCustomerDetails(customerId);
+        });
+      });
+      
+      document.querySelectorAll('.edit-customer').forEach(button => {
+        button.addEventListener('click', function() {
+          const customerId = this.getAttribute('data-id');
+          showEditCustomerModal(customerId);
+        });
+      });
+    }
+    
+    function viewCustomerDetails(customerId) {
+      const customer = state.customers.find(c => c.id == customerId);
+      if (!customer) return;
+      
+      state.currentCustomer = customer;
+      
+      // Update customer details
+      document.getElementById('customer-detail-name').textContent = customer.name || '';
+      document.getElementById('customer-detail-contact').textContent = customer.contact || '';
+      document.getElementById('customer-detail-email').textContent = customer.email || '';
+      document.getElementById('customer-detail-address').textContent = customer.address || '';
+      document.getElementById('customer-detail-notes').textContent = customer.notes || '';
+      
+      // Calculate financial information
+      const invoices = state.invoices.filter(inv => inv.customer_id === customer.id);
+      const totalInvoiced = invoices.reduce((sum, inv) => sum + inv.total_cents, 0);
+      
+      const payments = state.payments.filter(pay => pay.customer_id === customer.id);
+      const totalPaid = payments.reduce((sum, pay) => sum + pay.amount_cents, 0);
+      
+      const balance = totalInvoiced - totalPaid;
+      
+      document.getElementById('customer-detail-balance').textContent = formatMoney(balance);
+      document.getElementById('customer-detail-purchases').textContent = formatMoney(totalInvoiced);
+      document.getElementById('customer-detail-payments').textContent = formatMoney(totalPaid);
+      
+      // Show customer detail panel
+      document.getElementById('customer-detail').style.display = 'block';
+      
+      // Render customer invoices
+      renderCustomerInvoices(customer.id);
+    }
+    
+    function renderCustomerInvoices(customerId) {
+      const tbody = document.getElementById('customer-invoices-body');
+      tbody.innerHTML = '';
+      
+      const invoices = state.invoices
+        .filter(inv => inv.customer_id === customerId)
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+      
+      if (invoices.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td colspan="5" class="center">No invoices found</td>
+        `;
+        tbody.appendChild(row);
+        return;
+      }
+      
+      invoices.forEach(invoice => {
+        const row = document.createElement('tr');
+        
+        // Calculate payments
+        const payments = state.payments.filter(pay => pay.invoice_id === invoice.id);
+        const totalPaid = payments.reduce((sum, pay) => sum + pay.amount_cents, 0);
+        const balance = invoice.total_cents - totalPaid;
+        
+        // Determine status
+        let status = 'pending';
+        if (balance <= 0) {
+          status = 'paid';
+        } else if (totalPaid > 0) {
+          status = 'partial';
+        } else if (new Date(invoice.due_date) < new Date()) {
+          status = 'overdue';
+        }
+        
+        row.innerHTML = `
+          <td>${invoice.invoice_number}</td>
+          <td>${formatShortDate(invoice.date)}</td>
+          <td class="right">${formatMoney(invoice.total_cents)}</td>
+          <td>
+            <span class="tag ${status === 'paid' ? 'success' : status === 'partial' ? 'warning' : status === 'overdue' ? 'error' : 'info'}">
+              ${status.charAt(0).toUpperCase() + status.slice(1)}
+            </span>
+          </td>
+          <td>
+            <button class="btn btn-secondary view-invoice" data-id="${invoice.id}">
+              <i class="fas fa-eye"></i>
+            </button>
+            <button class="btn btn-secondary print-invoice" data-id="${invoice.id}">
+              <i class="fas fa-print"></i>
+            </button>
+          </td>
+        `;
+        
+        tbody.appendChild(row);
+      });
+      
+      // Add event listeners to buttons
+      document.querySelectorAll('.view-invoice').forEach(button => {
+        button.addEventListener('click', function() {
+          const invoiceId = this.getAttribute('data-id');
+          viewInvoiceDetails(invoiceId);
+        });
+      });
+      
+      document.querySelectorAll('.print-invoice').forEach(button => {
+        button.addEventListener('click', function() {
+          const invoiceId = this.getAttribute('data-id');
+          printInvoice(invoiceId);
+        });
+      });
+    }
+    
+    function renderCustomerPayments(customerId) {
+      const tbody = document.getElementById('customer-payments-body');
+      tbody.innerHTML = '';
+      
+      const payments = state.payments
+        .filter(pay => pay.customer_id === customerId)
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+      
+      if (payments.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td colspan="5" class="center">No payments found</td>
+        `;
+        tbody.appendChild(row);
+        return;
+      }
+      
+      payments.forEach(payment => {
+        const row = document.createElement('tr');
+        
+        row.innerHTML = `
+          <td>${payment.payment_number}</td>
+          <td>${formatShortDate(payment.date)}</td>
+          <td class="right">${formatMoney(payment.amount_cents)}</td>
+          <td>${escapeHtml(payment.method || '')}</td>
+          <td>${escapeHtml(payment.notes || '')}</td>
+        `;
+        
+        tbody.appendChild(row);
+      });
+    }
+    
+    function generateCustomerStatement(customerId, startDate, endDate) {
+      const customer = state.customers.find(c => c.id == customerId);
+      if (!customer) return;
+      
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      
+      // Get invoices and payments within date range
+      const invoices = state.invoices
+        .filter(inv => inv.customer_id === customerId && new Date(inv.date) >= start && new Date(inv.date) <= end)
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+      
+      const payments = state.payments
+        .filter(pay => pay.customer_id === customerId && new Date(pay.date) >= start && new Date(pay.date) <= end)
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+      
+      // Calculate opening balance (all transactions before start date)
+      const openingInvoices = state.invoices
+        .filter(inv => inv.customer_id === customerId && new Date(inv.date) < start);
+      
+      const openingPayments = state.payments
+        .filter(pay => pay.customer_id === customerId && new Date(pay.date) < start);
+      
+      const openingBalance = openingInvoices.reduce((sum, inv) => sum + inv.total_cents, 0) - 
+                            openingPayments.reduce((sum, pay) => sum + pay.amount_cents, 0);
+      
+      // Calculate closing balance
+      const closingBalance = openingBalance + 
+                            invoices.reduce((sum, inv) => sum + inv.total_cents, 0) - 
+                            payments.reduce((sum, pay) => sum + pay.amount_cents, 0);
+      
+      // Generate statement HTML
+      const statementContent = document.getElementById('statement-content');
+      
+      statementContent.innerHTML = `
+        <div class="statement-header">
+          <div class="statement-company">
+            <h2>${escapeHtml(state.settings.companyName || 'Your Company Name')}</h2>
+            <p>${escapeHtml(state.settings.companyAddress || 'Your Company Address')}</p>
+            <p>Phone: ${escapeHtml(state.settings.companyPhone || '')}</p>
+            <p>Email: ${escapeHtml(state.settings.companyEmail || '')}</p>
+          </div>
+          <div class="statement-info">
+            <h2>STATEMENT</h2>
+            <p><strong>Date:</strong> ${formatShortDate(new Date())}</p>
+            <p><strong>Period:</strong> ${formatShortDate(start)} - ${formatShortDate(end)}</p>
+          </div>
+        </div>
+        
+        <div class="statement-customer">
+          <h3>STATEMENT FOR:</h3>
+          <p><strong>${escapeHtml(customer.name || '')}</strong></p>
+          <p>${escapeHtml(customer.address || '')}</p>
+          <p>Contact: ${escapeHtml(customer.contact || '')}</p>
+          <p>Email: ${escapeHtml(customer.email || '')}</p>
+        </div>
+        
+        <div class="statement-summary">
+          <div class="summary-row">
+            <div class="summary-label">Opening Balance:</div>
+            <div class="summary-value">${formatMoney(openingBalance)}</div>
+          </div>
+          <div class="summary-row">
+            <div class="summary-label">Total Invoices:</div>
+            <div class="summary-value">${formatMoney(invoices.reduce((sum, inv) => sum + inv.total_cents, 0))}</div>
+          </div>
+          <div class="summary-row">
+            <div class="summary-label">Total Payments:</div>
+            <div class="summary-value">${formatMoney(payments.reduce((sum, pay) => sum + pay.amount_cents, 0))}</div>
+          </div>
+          <div class="summary-row">
+            <div class="summary-label">Closing Balance:</div>
+            <div class="summary-value ${closingBalance > 0 ? 'error' : ''}">${formatMoney(closingBalance)}</div>
+          </div>
+        </div>
+        
+        <div class="statement-transactions">
+          <h3>TRANSACTION HISTORY</h3>
+          <table class="statement-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Reference</th>
+                <th>Charges</th>
+                <th>Payments</th>
+                <th>Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>${formatShortDate(start)}</td>
+                <td>Opening Balance</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td class="right ${openingBalance > 0 ? 'error' : ''}">${formatMoney(openingBalance)}</td>
+              </tr>
+      `;
+      
+      // Combine invoices and payments for chronological listing
+      const transactions = [
+        ...invoices.map(inv => ({
+          date: new Date(inv.date),
+          type: 'invoice',
+          description: `Invoice #${inv.invoice_number}`,
+          reference: inv.invoice_number,
+          amount: inv.total_cents
+        })),
+        ...payments.map(pay => ({
+          date: new Date(pay.date),
+          type: 'payment',
+          description: `Payment - ${pay.method || ''}`,
+          reference: pay.payment_number,
+          amount: pay.amount_cents
+        }))
+      ].sort((a, b) => a.date - b.date);
+      
+      // Running balance
+      let runningBalance = openingBalance;
+      
+      // Add transaction rows
+      transactions.forEach(transaction => {
+        if (transaction.type === 'invoice') {
+          runningBalance += transaction.amount;
+        } else {
+          runningBalance -= transaction.amount;
+        }
+        
+        statementContent.innerHTML += `
+          <tr>
+            <td>${formatShortDate(transaction.date)}</td>
+            <td>${escapeHtml(transaction.description)}</td>
+            <td>${escapeHtml(transaction.reference)}</td>
+            <td class="right">${transaction.type === 'invoice' ? formatMoney(transaction.amount) : ''}</td>
+            <td class="right">${transaction.type === 'payment' ? formatMoney(transaction.amount) : ''}</td>
+            <td class="right ${runningBalance > 0 ? 'error' : ''}">${formatMoney(runningBalance)}</td>
+          </tr>
+        `;
+      });
+      
+      statementContent.innerHTML += `
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="statement-footer">
+          <p>Please contact us if you have any questions about this statement.</p>
+          <p>Thank you for your business!</p>
+        </div>
+      `;
+    }
+    
     // Setup event listeners
     function setupEventListeners() {
       // Refresh balance button
@@ -3165,17 +5345,512 @@
           document.getElementById(`${tabId}-tab`).classList.add('active');
           
           // Load tab-specific data
-          if (tabId === 'inventory') {
+          if (tabId === 'manual-entry') {
+            renderRecentItems();
+          } else if (tabId === 'inventory') {
             loadInventory();
           } else if (tabId === 'cash-drawer') {
             loadCashDrawer();
           } else if (tabId === 'warehouse' && state.warehouseUnlocked) {
             loadWarehouse();
+          } else if (tabId === 'customers') {
+            renderCustomers();
+          } else if (tabId === 'invoices') {
+            renderInvoices();
+          } else if (tabId === 'admin' && state.adminUnlocked) {
+            renderAdminDashboard();
           }
         });
       });
     }
 
+    // Setup sub-tab event listeners
+    function setupSubTabEventListeners() {
+      // Customer sub-tabs
+      const customerSubTabs = document.querySelectorAll('.sub-tab');
+      const customerSubTabContents = document.querySelectorAll('.sub-tab-content');
+      
+      customerSubTabs.forEach(tab => {
+        tab.addEventListener('click', function(e) {
+          e.preventDefault();
+          
+          // Get parent tab ID to determine which set of sub-tabs to update
+          const parentTabId = this.closest('.tab-content').id;
+          const subTabGroup = parentTabId.replace('-tab', '');
+          
+          // Remove active class from all sub-tabs and contents in this group
+          document.querySelectorAll(`.sub-tab[data-subtab^="${subTabGroup}"]`).forEach(t => t.classList.remove('active'));
+          document.querySelectorAll(`[id^="${subTabGroup}-"][id$="-tab"].sub-tab-content`).forEach(c => c.classList.remove('active'));
+          
+          // Add active class to clicked sub-tab and corresponding content
+          this.classList.add('active');
+          const subTabId = this.getAttribute('data-subtab');
+          document.getElementById(`${subTabId}-tab`).classList.add('active');
+          
+          // Load sub-tab specific data
+          if (subTabId === 'customer-invoices' && state.currentCustomer) {
+            renderCustomerInvoices(state.currentCustomer.id);
+          } else if (subTabId === 'customer-payments' && state.currentCustomer) {
+            renderCustomerPayments(state.currentCustomer.id);
+          } else if (subTabId === 'admin-dashboard') {
+            renderAdminDashboard();
+          } else if (subTabId === 'admin-logs') {
+            renderSystemLogs();
+          }
+        });
+      });
+      
+      // Manual entry tab buttons
+      document.getElementById('add-to-store-btn').addEventListener('click', function() {
+        addItemFromManualEntry('store');
+      });
+      
+      document.getElementById('add-to-warehouse-btn').addEventListener('click', function() {
+        addItemFromManualEntry('warehouse');
+      });
+      
+      document.getElementById('manual-add-item-btn').addEventListener('click', function() {
+        const location = document.getElementById('warehouse-unlock-btn').disabled ? 'store' : 'warehouse';
+        addItemFromManualEntry(location);
+      });
+      
+      document.getElementById('manual-clear-btn').addEventListener('click', function() {
+        document.getElementById('manual_device').value = '';
+        document.getElementById('manual_color').value = '';
+        document.getElementById('manual_storage').value = '';
+        document.getElementById('manual_imei').value = '';
+        document.getElementById('manual_carrier').value = 'Unknown';
+        document.getElementById('manual_condition').value = 'B';
+        document.getElementById('manual_type').value = 'Phone';
+        document.getElementById('manual_price').value = '';
+        document.getElementById('manual_quantity').value = '1';
+        document.getElementById('manual_purchase_date').value = '';
+        document.getElementById('manual_notes').value = '';
+      });
+      
+      // Customer tab buttons
+      document.getElementById('add-customer-btn').addEventListener('click', function() {
+        showAddCustomerModal();
+      });
+      
+      document.getElementById('customer-search-btn').addEventListener('click', function() {
+        state.customerFilters.search = document.getElementById('customer-search').value;
+        renderCustomers();
+      });
+      
+      document.getElementById('create-invoice-btn').addEventListener('click', function() {
+        if (state.currentCustomer) {
+          showCreateInvoiceModal(state.currentCustomer.id);
+        }
+      });
+      
+      document.getElementById('record-payment-btn').addEventListener('click', function() {
+        if (state.currentCustomer) {
+          showRecordPaymentModal(state.currentCustomer.id);
+        }
+      });
+      
+      document.getElementById('generate-statement-btn').addEventListener('click', function() {
+        if (state.currentCustomer) {
+          const startDate = document.getElementById('statement-start-date').value;
+          const endDate = document.getElementById('statement-end-date').value;
+          
+          if (!startDate || !endDate) {
+            showAlert('error', 'Please select start and end dates.');
+            return;
+          }
+          
+          generateCustomerStatement(state.currentCustomer.id, startDate, endDate);
+        }
+      });
+      
+      document.getElementById('print-statement-btn').addEventListener('click', function() {
+        window.print();
+      });
+      
+      // Warehouse mass selection buttons
+      document.getElementById('mass-select-all-btn').addEventListener('click', function() {
+        document.querySelectorAll('.warehouse-select-item').forEach(checkbox => {
+          checkbox.checked = true;
+        });
+        updateSelectedCount();
+      });
+      
+      document.getElementById('mass-deselect-all-btn').addEventListener('click', function() {
+        document.querySelectorAll('.warehouse-select-item').forEach(checkbox => {
+          checkbox.checked = false;
+        });
+        updateSelectedCount();
+      });
+      
+      document.getElementById('create-invoice-from-selected-btn').addEventListener('click', function() {
+        const selectedItems = document.querySelectorAll('.warehouse-select-item:checked');
+        if (selectedItems.length === 0) {
+          showAlert('error', 'Please select at least one item.');
+          return;
+        }
+        
+        showCreateInvoiceFromItemsModal();
+      });
+      
+      document.getElementById('export-selected-btn').addEventListener('click', function() {
+        const selectedItems = document.querySelectorAll('.warehouse-select-item:checked');
+        if (selectedItems.length === 0) {
+          showAlert('error', 'Please select at least one item.');
+          return;
+        }
+        
+        exportSelectedItems();
+      });
+      
+      // Admin panel buttons
+      document.getElementById('create-backup-btn').addEventListener('click', function() {
+        createBackup();
+      });
+      
+      document.getElementById('restore-backup-btn').addEventListener('click', function() {
+        showRestoreBackupModal();
+      });
+      
+      document.getElementById('save-backup-settings-btn').addEventListener('click', function() {
+        saveBackupSettings();
+      });
+      
+      document.getElementById('add-user-btn').addEventListener('click', function() {
+        showAddUserModal();
+      });
+      
+      document.getElementById('export-logs-btn').addEventListener('click', function() {
+        exportLogs();
+      });
+    }
+    
+    // Update selected count for mass selection
+    function updateSelectedCount() {
+      const selectedItems = document.querySelectorAll('.warehouse-select-item:checked');
+      const count = selectedItems.length;
+      
+      document.getElementById('selected-count').textContent = `${count} item${count === 1 ? '' : 's'} selected`;
+      
+      // Enable/disable buttons based on selection
+      document.getElementById('create-invoice-from-selected-btn').disabled = count === 0;
+      document.getElementById('export-selected-btn').disabled = count === 0;
+    }
+    
+    // Render admin dashboard
+    function renderAdminDashboard() {
+      // Update summary cards
+      document.getElementById('dashboard-total-inventory').textContent = state.inventory.filter(item => item.status === 'in_stock').length;
+      
+      const inventoryValue = state.inventory
+        .filter(item => item.status === 'in_stock')
+        .reduce((sum, item) => sum + (item.price_paid_cents || 0), 0);
+      document.getElementById('dashboard-inventory-value').textContent = formatMoney(inventoryValue);
+      
+      // Calculate outstanding invoices
+      let outstandingInvoices = 0;
+      state.invoices.forEach(invoice => {
+        const payments = state.payments.filter(pay => pay.invoice_id === invoice.id);
+        const totalPaid = payments.reduce((sum, pay) => sum + pay.amount_cents, 0);
+        const balance = invoice.total_cents - totalPaid;
+        
+        if (balance > 0) {
+          outstandingInvoices += balance;
+        }
+      });
+      document.getElementById('dashboard-outstanding-invoices').textContent = formatMoney(outstandingInvoices);
+      
+      // Calculate monthly sales
+      const today = new Date();
+      const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      
+      const monthlySales = state.invoices
+        .filter(invoice => new Date(invoice.date) >= firstDayOfMonth)
+        .reduce((sum, invoice) => sum + invoice.total_cents, 0);
+      document.getElementById('dashboard-monthly-sales').textContent = formatMoney(monthlySales);
+      
+      // Render charts
+      renderTopDevicesChart();
+      renderSalesChart();
+      renderConditionChart();
+      renderCarrierChart();
+      
+      // Render low stock alerts
+      renderLowStockAlerts();
+    }
+    
+    // Render charts for admin dashboard
+    function renderTopDevicesChart() {
+      // Group inventory by device name
+      const deviceCounts = {};
+      state.inventory.forEach(item => {
+        const device = item.device_display || 'Unknown';
+        deviceCounts[device] = (deviceCounts[device] || 0) + 1;
+      });
+      
+      // Sort and get top 10
+      const sortedDevices = Object.entries(deviceCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+      
+      const labels = sortedDevices.map(d => d[0]);
+      const data = sortedDevices.map(d => d[1]);
+      
+      // Create chart
+      const ctx = document.getElementById('top-devices-chart').getContext('2d');
+      
+      // Check if chart already exists and destroy it
+      if (window.topDevicesChart) {
+        window.topDevicesChart.destroy();
+      }
+      
+      window.topDevicesChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Device Count',
+            data: data,
+            backgroundColor: 'rgba(0, 226, 155, 0.7)',
+            borderColor: 'rgba(0, 226, 155, 1)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                precision: 0
+              }
+            }
+          }
+        }
+      });
+    }
+    
+    function renderSalesChart() {
+      // Group sales by month
+      const salesByMonth = {};
+      
+      // Get last 12 months
+      const today = new Date();
+      for (let i = 0; i < 12; i++) {
+        const month = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const monthKey = month.toISOString().substring(0, 7); // YYYY-MM format
+        salesByMonth[monthKey] = 0;
+      }
+      
+      // Add sales data
+      state.invoices.forEach(invoice => {
+        const monthKey = invoice.date.substring(0, 7); // YYYY-MM format
+        if (salesByMonth[monthKey] !== undefined) {
+          salesByMonth[monthKey] += invoice.total_cents;
+        }
+      });
+      
+      // Sort by month
+      const sortedMonths = Object.entries(salesByMonth)
+        .sort((a, b) => a[0].localeCompare(b[0]));
+      
+      const labels = sortedMonths.map(m => {
+        const date = new Date(m[0] + '-01');
+        return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      });
+      
+      const data = sortedMonths.map(m => m[1] / 100); // Convert cents to dollars
+      
+      // Create chart
+      const ctx = document.getElementById('sales-chart').getContext('2d');
+      
+      // Check if chart already exists and destroy it
+      if (window.salesChart) {
+        window.salesChart.destroy();
+      }
+      
+      window.salesChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Sales ($)',
+            data: data,
+            backgroundColor: 'rgba(72, 182, 255, 0.2)',
+            borderColor: 'rgba(72, 182, 255, 1)',
+            borderWidth: 2,
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false
+        }
+      });
+    }
+    
+    function renderConditionChart() {
+      // Group inventory by condition
+      const conditionCounts = {
+        'NIB': 0,
+        'A': 0,
+        'B': 0,
+        'C': 0,
+        'D': 0
+      };
+      
+      state.inventory
+        .filter(item => item.status === 'in_stock')
+        .forEach(item => {
+          const condition = item.condition || 'B';
+          if (conditionCounts[condition] !== undefined) {
+            conditionCounts[condition]++;
+          }
+        });
+      
+      const labels = Object.keys(conditionCounts);
+      const data = Object.values(conditionCounts);
+      
+      // Create chart
+      const ctx = document.getElementById('condition-chart').getContext('2d');
+      
+      // Check if chart already exists and destroy it
+      if (window.conditionChart) {
+        window.conditionChart.destroy();
+      }
+      
+      window.conditionChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            backgroundColor: [
+              'rgba(72, 255, 179, 0.7)',
+              'rgba(72, 182, 255, 0.7)',
+              'rgba(255, 182, 72, 0.7)',
+              'rgba(255, 72, 72, 0.7)',
+              'rgba(128, 128, 128, 0.7)'
+            ],
+            borderColor: [
+              'rgba(72, 255, 179, 1)',
+              'rgba(72, 182, 255, 1)',
+              'rgba(255, 182, 72, 1)',
+              'rgba(255, 72, 72, 1)',
+              'rgba(128, 128, 128, 1)'
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false
+        }
+      });
+    }
+    
+    function renderCarrierChart() {
+      // Group inventory by carrier
+      const carrierCounts = {};
+      
+      state.inventory
+        .filter(item => item.status === 'in_stock')
+        .forEach(item => {
+          const carrier = item.carrier || 'Unknown';
+          carrierCounts[carrier] = (carrierCounts[carrier] || 0) + 1;
+        });
+      
+      const labels = Object.keys(carrierCounts);
+      const data = Object.values(carrierCounts);
+      
+      // Create chart
+      const ctx = document.getElementById('carrier-chart').getContext('2d');
+      
+      // Check if chart already exists and destroy it
+      if (window.carrierChart) {
+        window.carrierChart.destroy();
+      }
+      
+      window.carrierChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            backgroundColor: [
+              'rgba(72, 255, 179, 0.7)',
+              'rgba(72, 182, 255, 0.7)',
+              'rgba(255, 182, 72, 0.7)',
+              'rgba(255, 72, 72, 0.7)',
+              'rgba(128, 128, 128, 0.7)',
+              'rgba(255, 72, 255, 0.7)'
+            ],
+            borderColor: [
+              'rgba(72, 255, 179, 1)',
+              'rgba(72, 182, 255, 1)',
+              'rgba(255, 182, 72, 1)',
+              'rgba(255, 72, 72, 1)',
+              'rgba(128, 128, 128, 1)',
+              'rgba(255, 72, 255, 1)'
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false
+        }
+      });
+    }
+    
+    function renderLowStockAlerts() {
+      const tbody = document.getElementById('low-stock-body');
+      tbody.innerHTML = '';
+      
+      // Group inventory by device
+      const deviceCounts = {};
+      state.inventory
+        .filter(item => item.status === 'in_stock')
+        .forEach(item => {
+          const device = item.device_display || 'Unknown';
+          deviceCounts[device] = (deviceCounts[device] || 0) + 1;
+        });
+      
+      // Get devices below threshold
+      const lowStockDevices = Object.entries(deviceCounts)
+        .filter(([device, count]) => count <= state.settings.lowStockThreshold)
+        .sort((a, b) => a[1] - b[1]); // Sort by count ascending
+      
+      if (lowStockDevices.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td colspan="4" class="center">No low stock alerts</td>
+        `;
+        tbody.appendChild(row);
+        return;
+      }
+      
+      lowStockDevices.forEach(([device, count]) => {
+        // Find last received date for this device
+        const lastReceived = state.inventory
+          .filter(item => item.device_display === device)
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+        
+        const lastReceivedDate = lastReceived ? formatShortDate(lastReceived.created_at) : 'N/A';
+        
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${escapeHtml(device)}</td>
+          <td class="${count <= state.settings.lowStockThreshold / 2 ? 'error' : 'warning'}">${count}</td>
+          <td>${state.settings.lowStockThreshold}</td>
+          <td>${lastReceivedDate}</td>
+        `;
+        
+        tbody.appendChild(row);
+      });
+    }
+    
     // Check API balance
     function checkBalance() {
       fetch('/api/balance')
@@ -3197,6 +5872,366 @@
         });
     }
 
+    // Data persistence functions
+    function initializeData() {
+      showLoader();
+      
+      // Check if data is already initialized
+      db.collection('system').doc('status').get()
+        .then(doc => {
+          if (doc.exists && doc.data().initialized) {
+            state.dataInitialized = true;
+            loadAllData();
+          } else {
+            // First time initialization
+            saveAllData()
+              .then(() => {
+                db.collection('system').doc('status').set({
+                  initialized: true,
+                  lastBackup: null,
+                  version: '1.0.0'
+                });
+                state.dataInitialized = true;
+                hideLoader();
+                showAlert('success', 'System initialized successfully.');
+              })
+              .catch(error => {
+                console.error('Error initializing data:', error);
+                hideLoader();
+                showAlert('error', 'Error initializing system: ' + error.message);
+              });
+          }
+        })
+        .catch(error => {
+          console.error('Error checking initialization status:', error);
+          hideLoader();
+          showAlert('error', 'Error checking initialization status: ' + error.message);
+        });
+    }
+    
+    function loadAllData() {
+      showLoader();
+      
+      Promise.all([
+        // Load inventory
+        db.collection('inventory').get().then(snapshot => {
+          state.inventory = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+        }),
+        
+        // Load cash drawer
+        db.collection('cashDrawer').orderBy('opened_at', 'desc').limit(1).get().then(snapshot => {
+          if (!snapshot.empty) {
+            state.cashDrawer = {
+              id: snapshot.docs[0].id,
+              ...snapshot.docs[0].data()
+            };
+          }
+        }),
+        
+        // Load transactions
+        db.collection('transactions').get().then(snapshot => {
+          state.transactions = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+        }),
+        
+        // Load logs
+        db.collection('logs').orderBy('timestamp', 'desc').limit(1000).get().then(snapshot => {
+          state.logs = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+        }),
+        
+        // Load customers
+        db.collection('customers').get().then(snapshot => {
+          state.customers = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+        }),
+        
+        // Load invoices
+        db.collection('invoices').get().then(snapshot => {
+          state.invoices = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+        }),
+        
+        // Load payments
+        db.collection('payments').get().then(snapshot => {
+          state.payments = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+        }),
+        
+        // Load settings
+        db.collection('settings').doc('system').get().then(doc => {
+          if (doc.exists) {
+            state.settings = doc.data();
+          }
+        }),
+        
+        // Load users
+        db.collection('users').get().then(snapshot => {
+          if (!snapshot.empty) {
+            state.users = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+          }
+        }),
+        
+        // Load backup settings
+        db.collection('settings').doc('backup').get().then(doc => {
+          if (doc.exists) {
+            state.backupSettings = doc.data();
+          }
+        }),
+        
+        // Load backups
+        db.collection('backups').orderBy('created_at', 'desc').get().then(snapshot => {
+          state.backups = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+        })
+      ])
+      .then(() => {
+        hideLoader();
+        
+        // Render initial views
+        if (document.getElementById('lookup-tab').classList.contains('active')) {
+          // Nothing to render for lookup tab
+        } else if (document.getElementById('manual-entry-tab').classList.contains('active')) {
+          renderRecentItems();
+        } else if (document.getElementById('inventory-tab').classList.contains('active')) {
+          renderInventory();
+        } else if (document.getElementById('cash-drawer-tab').classList.contains('active')) {
+          renderCashDrawer();
+        } else if (document.getElementById('warehouse-tab').classList.contains('active') && state.warehouseUnlocked) {
+          renderWarehouse();
+        } else if (document.getElementById('customers-tab').classList.contains('active')) {
+          renderCustomers();
+        } else if (document.getElementById('invoices-tab').classList.contains('active')) {
+          renderInvoices();
+        } else if (document.getElementById('admin-tab').classList.contains('active') && state.adminUnlocked) {
+          renderAdminDashboard();
+        }
+        
+        showAlert('success', 'Data loaded successfully.');
+      })
+      .catch(error => {
+        console.error('Error loading data:', error);
+        hideLoader();
+        showAlert('error', 'Error loading data: ' + error.message);
+      });
+    }
+    
+    function saveAllData() {
+      showLoader();
+      
+      const batch = db.batch();
+      
+      // Save inventory
+      state.inventory.forEach(item => {
+        const itemRef = db.collection('inventory').doc(item.id.toString());
+        batch.set(itemRef, item);
+      });
+      
+      // Save cash drawer
+      if (state.cashDrawer) {
+        const drawerRef = db.collection('cashDrawer').doc(state.cashDrawer.id.toString());
+        batch.set(drawerRef, state.cashDrawer);
+      }
+      
+      // Save transactions
+      state.transactions.forEach(transaction => {
+        const transactionRef = db.collection('transactions').doc(transaction.id.toString());
+        batch.set(transactionRef, transaction);
+      });
+      
+      // Save logs (only save the most recent 1000)
+      const recentLogs = state.logs.slice(0, 1000);
+      recentLogs.forEach(log => {
+        const logRef = db.collection('logs').doc(log.id ? log.id.toString() : Date.now().toString());
+        batch.set(logRef, log);
+      });
+      
+      // Save customers
+      state.customers.forEach(customer => {
+        const customerRef = db.collection('customers').doc(customer.id.toString());
+        batch.set(customerRef, customer);
+      });
+      
+      // Save invoices
+      state.invoices.forEach(invoice => {
+        const invoiceRef = db.collection('invoices').doc(invoice.id.toString());
+        batch.set(invoiceRef, invoice);
+      });
+      
+      // Save payments
+      state.payments.forEach(payment => {
+        const paymentRef = db.collection('payments').doc(payment.id.toString());
+        batch.set(paymentRef, payment);
+      });
+      
+      // Save settings
+      const settingsRef = db.collection('settings').doc('system');
+      batch.set(settingsRef, state.settings);
+      
+      // Save users
+      state.users.forEach(user => {
+        const userRef = db.collection('users').doc(user.id.toString());
+        batch.set(userRef, user);
+      });
+      
+      // Save backup settings
+      const backupSettingsRef = db.collection('settings').doc('backup');
+      batch.set(backupSettingsRef, state.backupSettings);
+      
+      return batch.commit()
+        .then(() => {
+          hideLoader();
+          console.log('All data saved successfully.');
+          return true;
+        })
+        .catch(error => {
+          hideLoader();
+          console.error('Error saving data:', error);
+          showAlert('error', 'Error saving data: ' + error.message);
+          return false;
+        });
+    }
+    
+    // Create a backup
+    function createBackup() {
+      showLoader();
+      
+      const backup = {
+        id: Date.now().toString(),
+        created_at: new Date().toISOString(),
+        created_by: 'admin',
+        inventory: state.inventory,
+        cashDrawer: state.cashDrawer,
+        transactions: state.transactions,
+        customers: state.customers,
+        invoices: state.invoices,
+        payments: state.payments,
+        settings: state.settings,
+        users: state.users
+      };
+      
+      return db.collection('backups').doc(backup.id).set(backup)
+        .then(() => {
+          // Update system status
+          return db.collection('system').doc('status').update({
+            lastBackup: new Date().toISOString()
+          });
+        })
+        .then(() => {
+          // Add to backups list
+          state.backups.unshift({
+            id: backup.id,
+            created_at: backup.created_at,
+            created_by: backup.created_by,
+            size: JSON.stringify(backup).length
+          });
+          
+          hideLoader();
+          showAlert('success', 'Backup created successfully.');
+          
+          // Render backups if on backup tab
+          if (document.getElementById('admin-backup-tab').classList.contains('active')) {
+            renderBackups();
+          }
+          
+          return true;
+        })
+        .catch(error => {
+          hideLoader();
+          console.error('Error creating backup:', error);
+          showAlert('error', 'Error creating backup: ' + error.message);
+          return false;
+        });
+    }
+    
+    // Restore from backup
+    function restoreFromBackup(backupId) {
+      showLoader();
+      
+      return db.collection('backups').doc(backupId).get()
+        .then(doc => {
+          if (doc.exists) {
+            const backup = doc.data();
+            
+            // Restore state from backup
+            state.inventory = backup.inventory || [];
+            state.cashDrawer = backup.cashDrawer || null;
+            state.transactions = backup.transactions || [];
+            state.customers = backup.customers || [];
+            state.invoices = backup.invoices || [];
+            state.payments = backup.payments || [];
+            state.settings = backup.settings || {
+              conditionAgeDays: 45,
+              taxRate: 8.25,
+              invoiceDueDays: 30,
+              lowStockThreshold: 5
+            };
+            state.users = backup.users || [{
+              id: 'admin',
+              username: 'admin',
+              role: 'admin',
+              email: 'admin@example.com',
+              lastLogin: new Date().toISOString(),
+              status: 'active'
+            }];
+            
+            // Save restored data
+            return saveAllData();
+          } else {
+            throw new Error('Backup not found');
+          }
+        })
+        .then(() => {
+          hideLoader();
+          showAlert('success', 'Backup restored successfully.');
+          
+          // Reload current view
+          if (document.getElementById('lookup-tab').classList.contains('active')) {
+            // Nothing to render for lookup tab
+          } else if (document.getElementById('manual-entry-tab').classList.contains('active')) {
+            renderRecentItems();
+          } else if (document.getElementById('inventory-tab').classList.contains('active')) {
+            renderInventory();
+          } else if (document.getElementById('cash-drawer-tab').classList.contains('active')) {
+            renderCashDrawer();
+          } else if (document.getElementById('warehouse-tab').classList.contains('active') && state.warehouseUnlocked) {
+            renderWarehouse();
+          } else if (document.getElementById('customers-tab').classList.contains('active')) {
+            renderCustomers();
+          } else if (document.getElementById('invoices-tab').classList.contains('active')) {
+            renderInvoices();
+          } else if (document.getElementById('admin-tab').classList.contains('active') && state.adminUnlocked) {
+            renderAdminDashboard();
+          }
+          
+          return true;
+        })
+        .catch(error => {
+          hideLoader();
+          console.error('Error restoring backup:', error);
+          showAlert('error', 'Error restoring backup: ' + error.message);
+          return false;
+        });
+    }
+    
     document.addEventListener('DOMContentLoaded', function() {
       // Setup device typeahead
       setupDeviceTypeahead();
@@ -3207,9 +6242,21 @@
       // Setup event listeners
       setupEventListeners();
       
+      // Setup sub-tab event listeners
+      setupSubTabEventListeners();
+      
       // Check API balance
       checkBalance();
+      
+      // Initialize data
+      initializeData();
     });
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+  
+  <!-- Firebase for data persistence -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
 </body>
 </html>
