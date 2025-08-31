@@ -488,7 +488,21 @@
       display: block;
     }
     
-    .typeahead-item {
+    .suggestions {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      max-height: 300px;
+      overflow-y: auto;
+      z-index: 1000;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    .sug-item {
       padding: 8px 15px;
       cursor: pointer;
       display: flex;
@@ -497,27 +511,28 @@
       border-bottom: 1px solid var(--border);
     }
     
-    .typeahead-item:last-child {
+    .sug-item:last-child {
       border-bottom: none;
     }
     
-    .typeahead-item:hover {
+    .sug-item:hover, .sug-item.active {
       background-color: var(--secondary);
     }
     
-    .typeahead-item.active {
-      background-color: var(--secondary);
-    }
-    
-    .item-left {
+    .sug-left {
       flex: 1;
     }
     
-    .item-device {
+    .sug-device {
       font-weight: 500;
     }
     
-    .item-price {
+    .sug-sheet {
+      font-size: 0.85em;
+      color: var(--text-muted);
+    }
+    
+    .sug-price {
       color: var(--primary);
       font-weight: bold;
       margin-left: 10px;
@@ -865,15 +880,15 @@
           <div>
             <label>Device</label>
             <div class="typeahead">
-              <input type="text" id="manual_device" placeholder="Device Name">
-              <div class="typeahead-results" id="manual-device-results"></div>
+              <input type="text" id="m_device" placeholder="Device Name">
+              <div class="suggestions" id="m_suggest" style="display:none;"></div>
             </div>
           </div>
           <div>
             <label>Color</label>
             <div class="typeahead">
-              <input type="text" id="manual_color" placeholder="Color">
-              <div class="typeahead-results" id="manual-color-results"></div>
+              <input type="text" id="m_color" placeholder="Color">
+              <div class="suggestions" id="m_color_suggest" style="display:none;"></div>
             </div>
           </div>
           <div>
@@ -1170,13 +1185,12 @@
         
         <div id="warehouse-locked">
           <div style="text-align: center; padding: 50px 20px;">
-            <i class="fas fa-lock" style="font-size: 48px; margin-bottom: 20px; display: block; opacity: 0.5;"></i>
-            <h3>Warehouse Access Restricted</h3>
-            <p class="muted">Enter passcode to access warehouse inventory</p>
+            <i class="fas fa-warehouse" style="font-size: 48px; margin-bottom: 20px; display: block; opacity: 0.5;"></i>
+            <h3>Warehouse Portal</h3>
+            <p class="muted">Click below to access the warehouse inventory</p>
             <div style="max-width: 200px; margin: 20px auto;">
-              <input type="password" id="warehouse-passcode" class="passcode-input" placeholder="****" maxlength="4">
               <button class="btn" id="warehouse-unlock-btn" style="width: 100%; margin-top: 10px;">
-                <i class="fas fa-unlock"></i> Unlock
+                <i class="fas fa-unlock"></i> Enter Warehouse
               </button>
             </div>
           </div>
@@ -1312,12 +1326,11 @@
         <div id="admin-locked">
           <div style="text-align: center; padding: 50px 20px;">
             <i class="fas fa-shield-alt" style="font-size: 48px; margin-bottom: 20px; display: block; opacity: 0.5;"></i>
-            <h3>Admin Access Restricted</h3>
-            <p class="muted">Enter admin passcode to access admin panel</p>
+            <h3>Admin Panel</h3>
+            <p class="muted">Click below to access the admin panel</p>
             <div style="max-width: 200px; margin: 20px auto;">
-              <input type="password" id="admin-passcode" class="passcode-input" placeholder="****" maxlength="4">
               <button class="btn" id="admin-unlock-btn" style="width: 100%; margin-top: 10px;">
-                <i class="fas fa-unlock"></i> Unlock
+                <i class="fas fa-unlock"></i> Enter Admin
               </button>
             </div>
           </div>
@@ -3486,13 +3499,7 @@
 
     // Unlock warehouse
     function unlockWarehouse() {
-      const passcode = document.getElementById('warehouse-passcode').value;
-      
-      if (passcode !== '2468') {
-        showAlert('error', 'Invalid warehouse passcode.');
-        return;
-      }
-      
+      // No passcode required
       state.warehouseUnlocked = true;
       document.getElementById('warehouse-locked').style.display = 'none';
       document.getElementById('warehouse-content').style.display = 'block';
@@ -3724,13 +3731,7 @@
 
     // Unlock admin panel
     function unlockAdmin() {
-      const passcode = document.getElementById('admin-passcode').value;
-      
-      if (passcode !== '1337') {
-        showAlert('error', 'Invalid admin passcode.');
-        return;
-      }
-      
+      // No passcode required
       state.adminUnlocked = true;
       document.getElementById('admin-locked').style.display = 'none';
       document.getElementById('admin-content').style.display = 'block';
@@ -3986,8 +3987,8 @@
 
     // Device typeahead setup
     function setupDeviceTypeahead() {
-      var input = document.getElementById('manual_device');
-      var box   = document.getElementById('manual-device-results');
+      var input = document.getElementById('m_device');
+      var box   = document.getElementById('m_suggest');
       var activeIdx = -1;
       var lastQ = ""; var inflight = 0;
 
@@ -4025,7 +4026,7 @@
       function selectItem(obj) {
         input.value = obj.device;
         var parsed = parseColorAndStorage(obj.device);
-        if (parsed.color && !document.getElementById('manual_color').value) document.getElementById('manual_color').value = parsed.color;
+        if (parsed.color && !document.getElementById('m_color').value) document.getElementById('m_color').value = parsed.color;
         if (parsed.storage) setStorageFromText(parsed.storage);
         document.getElementById('manual_price').value = obj.price_dollars || 0;
         hide();
@@ -4034,12 +4035,12 @@
       function renderList(arr) {
         if (!arr.length) { hide(); return; }
         var html = arr.map(function(r, i) {
-          return '<div class="typeahead-item" data-idx="'+i+'">'
-            + '<div class="item-left"><div class="item-device">'+ r.device +'</div></div>'
-            + '<div class="item-price">$'+ (r.price_dollars || 0) +'</div></div>';
+          return '<div class="sug-item" data-idx="'+i+'">'
+            + '<div class="sug-left"><div class="sug-device">'+ r.device +'</div><div class="sug-sheet">'+ (r.sheet || '') +'</div></div>'
+            + '<div class="sug-price">$'+ (r.price_dollars || 0) +'</div></div>';
         }).join('');
         box.innerHTML = html;
-        Array.prototype.forEach.call(box.querySelectorAll('.typeahead-item'), function(el) {
+        Array.prototype.forEach.call(box.querySelectorAll('.sug-item'), function(el) {
           el.addEventListener('mousedown', function(e) {
             e.preventDefault();
             var idx = parseInt(el.getAttribute('data-idx'), 10);
@@ -4088,20 +4089,10 @@
         } catch (e) { hide(); }
       }, 180);
 
-      if (!input || !box) return;
-      
       input.addEventListener('input', function() { doFetch(input.value.trim()); });
-      
-      input.addEventListener('focus', function() {
-        if (input.value.trim()) {
-          doFetch(input.value.trim());
-        } else {
-          doFetch('i'); // Show some initial results
-        }
-      });
 
       input.addEventListener('keydown', function(e) {
-        var items = box.querySelectorAll('.typeahead-item');
+        var items = box.querySelectorAll('.sug-item');
         if (box.style.display === 'none' || !items.length) return;
         if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = (activeIdx + 1) % items.length; }
         else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = (activeIdx - 1 + items.length) % items.length; }
@@ -4111,8 +4102,9 @@
             var idx = parseInt(items[activeIdx].getAttribute('data-idx'), 10);
             var it = items[activeIdx];
             selectItem({
-              device: it.querySelector('.item-device').textContent,
-              price_dollars: Number(it.querySelector('.item-price').textContent.replace(/^\D+/, '')) || 0
+              device: it.querySelector('.sug-device').textContent,
+              sheet:  it.querySelector('.sug-sheet').textContent,
+              price_dollars: Number(it.querySelector('.sug-price').textContent.replace(/^\D+/, '')) || 0
             });
           }
         } else if (e.key === 'Escape') { hide(); }
@@ -4124,10 +4116,9 @@
     
     // Color typeahead setup
     function setupColorTypeahead() {
-      var input = document.getElementById('manual_color');
-      var box   = document.getElementById('manual-color-results');
+      var input = document.getElementById('m_color');
+      var box   = document.getElementById('m_color_suggest');
       var activeIdx = -1;
-      
       function hide() { box.style.display = 'none'; box.innerHTML = ''; activeIdx = -1; }
       function show() { box.style.display = 'block'; }
 
@@ -4144,9 +4135,9 @@
 
       function renderList(arr) {
         if (!arr.length) { hide(); return; }
-        var html = arr.map((name, i) => '<div class="typeahead-item" data-idx="'+i+'"><div>'+name+'</div></div>').join('');
+        var html = arr.map((name, i) => '<div class="sug-item" data-idx="'+i+'"><div>'+name+'</div></div>').join('');
         box.innerHTML = html;
-        Array.prototype.forEach.call(box.querySelectorAll('.typeahead-item'), function(el) {
+        Array.prototype.forEach.call(box.querySelectorAll('.sug-item'), function(el) {
           el.addEventListener('mousedown', function(e) {
             e.preventDefault();
             var idx = parseInt(el.getAttribute('data-idx'), 10);
@@ -4156,8 +4147,6 @@
         });
         show();
       }
-      
-      if (!input || !box) return;
 
       input.addEventListener('input', function() {
         var q = input.value.trim();
@@ -4165,11 +4154,13 @@
       });
       
       input.addEventListener('focus', function() {
-        renderList(filterColors(input.value.trim()));
+        if (this.value && colorResults.children.length) {
+          colorResults.classList.add('show');
+        }
       });
 
       input.addEventListener('keydown', function(e) {
-        var items = box.querySelectorAll('.typeahead-item');
+        var items = box.querySelectorAll('.sug-item');
         if (box.style.display === 'none' || !items.length) return;
         if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = (activeIdx + 1) % items.length; }
         else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = (activeIdx - 1 + items.length) % items.length; }
