@@ -160,68 +160,6 @@
       margin-bottom: 15px;
     }
     
-    /* Pending Transfers Styles */
-    #pending-transfers-section {
-      margin-bottom: 20px;
-    }
-    
-    /* Compact Manual Entry Styles */
-    #serial-inputs-container {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-    }
-    
-    .serial-input {
-      margin-bottom: 0;
-    }
-    
-    #pending-transfers-section .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    
-    #pending-transfers-section h3 {
-      margin: 0;
-    }
-    
-    .transfer-action-btn {
-      padding: 5px 10px;
-      margin: 0 2px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    
-    .transfer-accept-btn {
-      background-color: var(--primary);
-      color: #fff;
-    }
-    
-    .transfer-reject-btn {
-      background-color: var(--error);
-      color: #fff;
-    }
-    
-    .empty-state {
-      text-align: center;
-      padding: 40px 20px;
-      color: var(--text-muted);
-    }
-    
-    .empty-state i {
-      font-size: 48px;
-      margin-bottom: 15px;
-      opacity: 0.5;
-    }
-    
-    .empty-state p {
-      font-size: 18px;
-      margin: 0;
-    }
-    
     .card-header h2 {
       font-size: 18px;
       font-weight: 600;
@@ -553,10 +491,36 @@
     .typeahead-item {
       padding: 8px 15px;
       cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .typeahead-item:last-child {
+      border-bottom: none;
     }
     
     .typeahead-item:hover {
       background-color: var(--secondary);
+    }
+    
+    .typeahead-item.active {
+      background-color: var(--secondary);
+    }
+    
+    .item-left {
+      flex: 1;
+    }
+    
+    .item-device {
+      font-weight: 500;
+    }
+    
+    .item-price {
+      color: var(--primary);
+      font-weight: bold;
+      margin-left: 10px;
     }
     
     .cash-drawer-summary {
@@ -820,70 +784,6 @@
       padding: 20px;
       border-radius: 10px;
     }
-    
-    /* Typeahead styles */
-    .typeahead {
-      position: relative;
-    }
-    
-    .typeahead-results {
-      position: absolute;
-      top: 100%;
-      left: 0;
-      right: 0;
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 5px;
-      max-height: 300px;
-      overflow-y: auto;
-      z-index: 1000;
-      display: none;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    }
-    
-    .typeahead-results.show {
-      display: block !important;
-    }
-    
-    .typeahead-item {
-      padding: 8px 12px;
-      cursor: pointer;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    
-    .typeahead-item:last-child {
-      border-bottom: none;
-    }
-    
-    .typeahead-item:hover {
-      background: var(--secondary-light);
-    }
-    
-    .price-tag {
-      color: var(--primary);
-      font-weight: bold;
-      margin-left: 10px;
-    }
-    
-    .color-item {
-      display: flex;
-      align-items: center;
-    }
-    
-    .color-swatch {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      margin-right: 10px;
-      border: 1px solid var(--border);
-    }
-    
-    .color-name {
-      flex-grow: 1;
-    }
   </style>
 <script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
 </head>
@@ -961,7 +861,7 @@
           </div>
         </div>
         
-        <div style="display: grid; grid-template-columns: 3fr 2fr 1fr 1.5fr 1fr 1fr 1fr 0.8fr; gap: 8px; margin-bottom: 10px; align-items: end;">
+        <div style="display: grid; grid-template-columns: 3fr 2fr 1fr 1.5fr 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; align-items: end;">
           <div>
             <label>Device</label>
             <div class="typeahead">
@@ -991,7 +891,7 @@
           <div>
             <label>Carrier</label>
             <select id="manual_carrier">
-              <option value="Unknown">Select</option>
+              <option value="Unknown">Select Carrier</option>
               <option value="Unlocked">Unlocked</option>
               <option value="AT&T">AT&T</option>
               <option value="Verizon">Verizon</option>
@@ -1020,17 +920,15 @@
             <input type="number" id="manual_quantity" value="1" min="1">
           </div>
           <div>
-            <label>&nbsp;</label>
+            <label>Notes</label>
             <button class="btn btn-secondary" id="manual_notes_btn" style="width: 100%;">
               <i class="fas fa-sticky-note"></i> Notes
             </button>
           </div>
         </div>
         
-        <div class="form-group">
-          <label>Notes</label>
-          <textarea id="manual_notes" rows="2" placeholder="Additional notes..."></textarea>
-        </div>
+        <input type="hidden" id="manual_purchase_date">
+        <input type="hidden" id="manual_type" value="Phone">
         
         <div class="form-group">
           <button class="btn" id="manual-add-item-btn">
@@ -1285,46 +1183,6 @@
         </div>
         
         <div id="warehouse-content" style="display: none;">
-          <!-- Pending Transfers Section -->
-          <div class="card" id="pending-transfers-section">
-            <div class="card-header">
-              <h3>Pending Transfers</h3>
-              <div class="btn-group">
-                <button class="btn" id="accept-all-transfers-btn">
-                  <i class="fas fa-check"></i> Accept All
-                </button>
-                <button class="btn btn-secondary" id="reject-all-transfers-btn">
-                  <i class="fas fa-times"></i> Reject All
-                </button>
-              </div>
-            </div>
-            
-            <div class="table-responsive" id="pending-transfers-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th style="width: 30px;">
-                      <input type="checkbox" id="pending-select-all">
-                    </th>
-                    <th>IMEI</th>
-                    <th>Device</th>
-                    <th>Condition</th>
-                    <th>Carrier</th>
-                    <th>Transfer Date</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="pending-transfers-table-body">
-                  <!-- Pending transfers will be added here dynamically -->
-                </tbody>
-              </table>
-              <div id="no-pending-transfers" class="empty-state">
-                <i class="fas fa-check-circle"></i>
-                <p>No pending transfers</p>
-              </div>
-            </div>
-          </div>
-          
           <div class="form-row">
             <div>
               <input type="text" id="warehouse-search" placeholder="Search by IMEI or device name">
@@ -1473,7 +1331,6 @@
             <a href="#admin-logs" class="sub-tab" data-subtab="admin-logs">System Logs</a>
             <a href="#admin-settings" class="sub-tab" data-subtab="admin-settings">Settings</a>
             <a href="#admin-users" class="sub-tab" data-subtab="admin-users">Users</a>
-            <a href="#admin-purchase-log" class="sub-tab" data-subtab="admin-purchase-log">Purchase Log</a>
             <a href="#admin-backup" class="sub-tab" data-subtab="admin-backup">Backup & Restore</a>
           </div>
           
@@ -1965,61 +1822,6 @@
             </div>
           </div>
           
-          <!-- Purchase Log Tab -->
-          <div id="admin-purchase-log-tab" class="sub-tab-content">
-            <div class="admin-panel">
-              <h3>Purchase Log</h3>
-              <div class="form-row">
-                <div style="flex: 0 0 auto;">
-                  <button class="btn" id="export-purchase-log-btn">
-                    <i class="fas fa-file-export"></i> Export CSV
-                  </button>
-                </div>
-                <div style="flex: 0 0 auto;">
-                  <button class="btn" id="print-purchase-log-btn">
-                    <i class="fas fa-print"></i> Print
-                  </button>
-                </div>
-              </div>
-              
-              <div class="form-row">
-                <div>
-                  <label>Filter by Date</label>
-                  <div class="date-range">
-                    <input type="date" id="purchase-log-start-date">
-                    <span>to</span>
-                    <input type="date" id="purchase-log-end-date">
-                    <button class="btn" id="apply-purchase-log-filter">Apply</button>
-                  </div>
-                </div>
-                <div>
-                  <label>Search</label>
-                  <input type="text" id="purchase-log-search" placeholder="Search by device, IMEI, etc.">
-                </div>
-              </div>
-              
-              <div class="table-responsive">
-                <table id="purchase-log-table">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Device</th>
-                      <th>Color</th>
-                      <th>Storage</th>
-                      <th>IMEI/Serial</th>
-                      <th>Carrier</th>
-                      <th>Condition</th>
-                      <th>Price Paid</th>
-                    </tr>
-                  </thead>
-                  <tbody id="purchase-log-table-body">
-                    <!-- Purchase log entries will be dynamically added here -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-          
           <!-- Backup Tab -->
           <div id="admin-backup-tab" class="sub-tab-content">
             <div class="admin-panel">
@@ -2100,36 +1902,6 @@
         <div class="modal-footer">
           <button class="btn btn-secondary" id="import-modal-cancel">Cancel</button>
           <button class="btn" id="import-confirm">Import</button>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Notes Modal -->
-    <div class="modal" id="notes-modal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>Item Notes</h3>
-          <button class="modal-close" id="notes-modal-close">&times;</button>
-        </div>
-        <textarea id="manual_notes" placeholder="Enter notes about this item..." rows="5" style="width: 100%; resize: vertical; margin: 15px 0;"></textarea>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" id="notes-modal-cancel">Cancel</button>
-          <button class="btn" id="notes-modal-save">Save Notes</button>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Serial Numbers Modal -->
-    <div class="modal" id="serials-modal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>Add Serial Numbers</h3>
-          <button class="modal-close" id="serials-modal-close">&times;</button>
-        </div>
-        <div id="serials-container" style="margin: 15px 0; max-height: 300px; overflow-y: auto;"></div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" id="serials-modal-cancel">Cancel</button>
-          <button class="btn" id="serials-modal-save">Save Serial Numbers</button>
         </div>
       </div>
     </div>
@@ -3120,467 +2892,24 @@
       document.getElementById('m_device').focus();
     }
     
-    // Purchase Log functionality
-    function addToPurchaseLog(device, color, storage, quantity, price, carrier, condition = 'B', serials = []) {
-      // Get or initialize purchase log from localStorage
-      let purchaseLog = JSON.parse(localStorage.getItem('purchaseLog') || '[]');
-      
-      const timestamp = new Date().toISOString();
-      
-      // If serials are provided, add each one individually
-      if (serials && serials.length > 0) {
-        serials.forEach(serial => {
-          purchaseLog.push({
-            timestamp,
-            device,
-            color,
-            storage,
-            serial,
-            carrier,
-            condition,
-            price: parseFloat(price) || 0
-          });
-        });
-      } else {
-        // Otherwise add entries based on quantity
-        for (let i = 0; i < quantity; i++) {
-          purchaseLog.push({
-            timestamp,
-            device,
-            color,
-            storage,
-            serial: '',
-            carrier,
-            condition,
-            price: parseFloat(price) || 0
-          });
-        }
-      }
-      
-      // Save updated purchase log
-      localStorage.setItem('purchaseLog', JSON.stringify(purchaseLog));
-      
-      // Update purchase log table if it's currently visible
-      updatePurchaseLogTable();
-    }
-    
-    // Update the purchase log table with current data
-    function updatePurchaseLogTable() {
-      const tableBody = document.getElementById('purchase-log-table-body');
-      if (!tableBody) return;
-      
-      // Get purchase log from localStorage
-      const purchaseLog = JSON.parse(localStorage.getItem('purchaseLog') || '[]');
-      
-      // Clear existing rows
-      tableBody.innerHTML = '';
-      
-      // Add rows for each purchase
-      purchaseLog.forEach(item => {
-        const row = document.createElement('tr');
-        
-        // Format date
-        const date = new Date(item.timestamp);
-        const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-        
-        row.innerHTML = `
-          <td>${formattedDate}</td>
-          <td>${escapeHtml(item.device)}</td>
-          <td>${escapeHtml(item.color)}</td>
-          <td>${escapeHtml(item.storage)}</td>
-          <td>${escapeHtml(item.serial)}</td>
-          <td>${escapeHtml(item.carrier)}</td>
-          <td>${escapeHtml(item.condition)}</td>
-          <td>$${(item.price || 0).toFixed(2)}</td>
-        `;
-        
-        tableBody.appendChild(row);
-      });
-    }
-    
-    // Export purchase log to CSV
-    function exportPurchaseLogToCSV() {
-      const purchaseLog = JSON.parse(localStorage.getItem('purchaseLog') || '[]');
-      
-      if (purchaseLog.length === 0) {
-        showAlert('warning', 'No purchase log data to export.');
-        return;
-      }
-      
-      // Create CSV header
-      let csv = 'Date,Device,Color,Storage,IMEI/Serial,Carrier,Condition,Price Paid\n';
-      
-      // Add rows
-      purchaseLog.forEach(item => {
-        const date = new Date(item.timestamp);
-        const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-        
-        csv += `"${formattedDate}","${item.device}","${item.color}","${item.storage}","${item.serial}","${item.carrier}","${item.condition}","$${(item.price || 0).toFixed(2)}"\n`;
-      });
-      
-      // Create download link
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `purchase_log_${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      showAlert('success', 'Purchase log exported successfully.');
-    }
-    
-    // Filter purchase log by date range and search term
-    function filterPurchaseLog() {
-      const startDate = document.getElementById('purchase-log-start-date').value;
-      const endDate = document.getElementById('purchase-log-end-date').value;
-      const searchTerm = document.getElementById('purchase-log-search').value.toLowerCase();
-      
-      const tableBody = document.getElementById('purchase-log-table-body');
-      if (!tableBody) return;
-      
-      // Get purchase log from localStorage
-      const purchaseLog = JSON.parse(localStorage.getItem('purchaseLog') || '[]');
-      
-      // Clear existing rows
-      tableBody.innerHTML = '';
-      
-      // Filter and add rows
-      purchaseLog
-        .filter(item => {
-          // Date filter
-          if (startDate && new Date(item.timestamp) < new Date(startDate)) return false;
-          if (endDate) {
-            const endDateTime = new Date(endDate);
-            endDateTime.setHours(23, 59, 59, 999);
-            if (new Date(item.timestamp) > endDateTime) return false;
-          }
-          
-          // Search filter
-          if (searchTerm) {
-            const searchFields = [
-              item.device, 
-              item.color, 
-              item.storage, 
-              item.serial, 
-              item.carrier, 
-              item.condition
-            ].map(field => (field || '').toLowerCase());
-            
-            return searchFields.some(field => field.includes(searchTerm));
-          }
-          
-          return true;
-        })
-        .forEach(item => {
-          const row = document.createElement('tr');
-          
-          // Format date
-          const date = new Date(item.timestamp);
-          const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-          
-          row.innerHTML = `
-            <td>${formattedDate}</td>
-            <td>${escapeHtml(item.device)}</td>
-            <td>${escapeHtml(item.color)}</td>
-            <td>${escapeHtml(item.storage)}</td>
-            <td>${escapeHtml(item.serial)}</td>
-            <td>${escapeHtml(item.carrier)}</td>
-            <td>${escapeHtml(item.condition)}</td>
-            <td>$${(item.price || 0).toFixed(2)}</td>
-          `;
-          
-          tableBody.appendChild(row);
-        });
-    }
-    
-    // Notes modal functionality
-    function showNotesModal() {
-      const modal = document.getElementById('notes-modal');
-      modal.classList.add('show');
-      
-      // Focus on the textarea
-      document.getElementById('manual_notes').focus();
-      
-      // Setup close button
-      document.getElementById('notes-modal-close').addEventListener('click', function() {
-        modal.classList.remove('show');
-      });
-      
-      // Setup cancel button
-      document.getElementById('notes-modal-cancel').addEventListener('click', function() {
-        modal.classList.remove('show');
-      });
-      
-      // Setup save button
-      document.getElementById('notes-modal-save').addEventListener('click', function() {
-        // Store notes in localStorage to persist between modal openings
-        const notes = document.getElementById('manual_notes').value;
-        localStorage.setItem('manual_entry_notes', notes);
-        modal.classList.remove('show');
-        showAlert('success', 'Notes saved');
-      });
-    }
-    
-    // Serial numbers modal functionality
-    function showSerialsModal(device, color, storage, quantity, carrier, condition, price, notes, location) {
-      const modal = document.getElementById('serials-modal');
-      const container = document.getElementById('serials-container');
-      
-      // Clear previous content
-      container.innerHTML = '';
-      
-      // Create input fields for each item based on quantity
-      for (let i = 0; i < quantity; i++) {
-        const inputGroup = document.createElement('div');
-        inputGroup.style.marginBottom = '10px';
-        
-        const label = document.createElement('label');
-        label.textContent = `Item ${i + 1} Serial/IMEI:`;
-        
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.className = 'serial-modal-input';
-        input.placeholder = 'Enter serial number or IMEI';
-        
-        // Add keydown event for Enter key to move to next input
-        input.addEventListener('keydown', function(e) {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            const inputs = container.querySelectorAll('.serial-modal-input');
-            const currentIndex = Array.from(inputs).indexOf(this);
-            if (currentIndex < inputs.length - 1) {
-              inputs[currentIndex + 1].focus();
-            }
-          }
-        });
-        
-        inputGroup.appendChild(label);
-        inputGroup.appendChild(input);
-        container.appendChild(inputGroup);
-      }
-      
-      // Show the modal
-      modal.classList.add('show');
-      
-      // Focus on the first input
-      const firstInput = container.querySelector('.serial-modal-input');
-      if (firstInput) {
-        firstInput.focus();
-      }
-      
-      // Setup close button
-      document.getElementById('serials-modal-close').addEventListener('click', function() {
-        modal.classList.remove('show');
-      });
-      
-      // Setup cancel button
-      document.getElementById('serials-modal-cancel').addEventListener('click', function() {
-        modal.classList.remove('show');
-      });
-      
-      // Setup save button
-      document.getElementById('serials-modal-save').addEventListener('click', function() {
-        // Get all serial inputs
-        const serialInputs = container.querySelectorAll('.serial-modal-input');
-        const serials = Array.from(serialInputs)
-          .map(input => input.value.trim())
-          .filter(val => val !== '');
-        
-        // Add items with serials
-        if (serials.length > 0) {
-          for (const serial of serials) {
-            addSingleItem(device, color, storage, serial, carrier, condition, price, notes, location);
-          }
-          
-          // Add to purchase log
-          addToPurchaseLog(device, color, storage, 0, price, carrier, condition, serials);
-          
-          // Add to cash drawer activity
-          if (price && parseFloat(price) > 0) {
-            addCashDrawerActivity('purchase', `Purchased ${serials.length} x ${device} ${color} ${storage}`, parseFloat(price) * serials.length * -1);
-          }
-          
-          showAlert('success', `Added ${serials.length} items with serial numbers to ${location}`);
-        }
-        
-        // Add remaining items without serials
-        const remainingItems = quantity - serials.length;
-        if (remainingItems > 0) {
-          for (let i = 0; i < remainingItems; i++) {
-            addSingleItem(device, color, storage, '', carrier, condition, price, notes, location);
-          }
-          
-          // Add to purchase log
-          addToPurchaseLog(device, color, storage, remainingItems, price, carrier, condition);
-          
-          // Add to cash drawer activity
-          if (price && parseFloat(price) > 0) {
-            addCashDrawerActivity('purchase', `Purchased ${remainingItems} x ${device} ${color} ${storage}`, parseFloat(price) * remainingItems * -1);
-          }
-          
-          showAlert('info', `Added ${remainingItems} items without serial numbers to ${location}`);
-        }
-        
-        // Close the modal
-        modal.classList.remove('show');
-        
-        // Clear the form
-        clearManualEntryForm();
-      });
-    }
-    
-    // Clear manual entry form
-    function clearManualEntryForm() {
-      document.getElementById('manual_device').value = '';
-      document.getElementById('manual_color').value = '';
-      document.getElementById('manual_storage').value = '';
-      document.getElementById('manual_carrier').value = 'Unknown';
-      document.getElementById('manual_condition').value = 'B';
-      document.getElementById('manual_price').value = '';
-      document.getElementById('manual_quantity').value = '1';
-      localStorage.removeItem('manual_entry_notes');
-    }
-    
     // Add item from manual entry section
     function addItemFromManualEntry(location) {
       const device = document.getElementById('manual_device').value.trim();
       const color = document.getElementById('manual_color').value.trim();
       const storage = document.getElementById('manual_storage').value.trim();
+      const imei = document.getElementById('manual_imei').value.trim();
       const carrier = document.getElementById('manual_carrier').value;
       const condition = document.getElementById('manual_condition').value;
+      const deviceType = document.getElementById('manual_type').value;
       const price = document.getElementById('manual_price').value;
       const quantity = parseInt(document.getElementById('manual_quantity').value) || 1;
-      const notes = localStorage.getItem('manual_entry_notes') || '';
+      const purchaseDate = document.getElementById('manual_purchase_date').value;
+      const notes = document.getElementById('manual_notes').value;
       
       if (!device) {
         showAlert('error', 'Please enter a device name.');
         return;
       }
-      
-      // Show serial numbers modal if quantity > 1
-      if (quantity > 1) {
-        showSerialsModal(device, color, storage, quantity, carrier, condition, price, notes, location);
-        return;
-      }
-      
-      // For single items, add directly
-      addSingleItem(device, color, storage, '', carrier, condition, price, notes, location);
-      
-      // Add to purchase log
-      addToPurchaseLog(device, color, storage, 1, price, carrier, condition);
-      
-      // Add to cash drawer activity if price is provided
-      if (price && parseFloat(price) > 0) {
-        addCashDrawerActivity('purchase', `Purchased ${device} ${color} ${storage}`, parseFloat(price) * -1);
-      }
-      
-      showAlert('success', `Added ${device} ${color} ${storage} to ${location}`);
-      
-      // Clear the form
-      clearManualEntryForm();
-    }
-    
-    // Add cash drawer activity
-    function addCashDrawerActivity(type, description, amount) {
-      // Create activity object
-      const activity = {
-        id: generateId(),
-        timestamp: new Date().toISOString(),
-        type: type,
-        description: description,
-        amount: amount
-      };
-      
-      // Get existing activities from localStorage
-      let activities = JSON.parse(localStorage.getItem('cashDrawerActivities') || '[]');
-      
-      // Add new activity to the beginning
-      activities.unshift(activity);
-      
-      // Save back to localStorage
-      localStorage.setItem('cashDrawerActivities', JSON.stringify(activities));
-      
-      // Update cash drawer balance
-      let balance = parseFloat(localStorage.getItem('cashDrawerBalance') || '0');
-      balance += amount;
-      localStorage.setItem('cashDrawerBalance', balance.toString());
-      
-      // Update cash drawer display if it's currently visible
-      const cashDrawerTab = document.getElementById('cash-drawer-tab');
-      if (cashDrawerTab && cashDrawerTab.classList.contains('active')) {
-        updateCashDrawerDisplay();
-      }
-      
-      // Add system log
-      addSystemLog('cash_drawer', `${type}: ${description} - $${Math.abs(amount).toFixed(2)}`);
-    }
-    
-    // Update cash drawer display
-    function updateCashDrawerDisplay() {
-      const cashDrawerContent = document.getElementById('cash-drawer-content');
-      if (!cashDrawerContent) return;
-      
-      // Get activities and balance from localStorage
-      const activities = JSON.parse(localStorage.getItem('cashDrawerActivities') || '[]');
-      const balance = parseFloat(localStorage.getItem('cashDrawerBalance') || '0');
-      
-      // Create balance display
-      let html = `
-        <div class="cash-drawer-balance">
-          <h3>Current Balance: <span class="${balance >= 0 ? 'positive' : 'negative'}">$${balance.toFixed(2)}</span></h3>
-        </div>
-        <div class="table-responsive">
-          <table>
-            <thead>
-              <tr>
-                <th>Date/Time</th>
-                <th>Type</th>
-                <th>Description</th>
-                <th>Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-      `;
-      
-      // Add activities
-      if (activities.length === 0) {
-        html += `
-          <tr>
-            <td colspan="4" class="empty-message">No transactions yet</td>
-          </tr>
-        `;
-      } else {
-        activities.forEach(activity => {
-          const date = new Date(activity.timestamp);
-          const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-          
-          html += `
-            <tr>
-              <td>${formattedDate}</td>
-              <td>${escapeHtml(activity.type)}</td>
-              <td>${escapeHtml(activity.description)}</td>
-              <td class="${activity.amount >= 0 ? 'positive' : 'negative'}">$${Math.abs(activity.amount).toFixed(2)}</td>
-            </tr>
-          `;
-        });
-      }
-      
-      html += `
-            </tbody>
-          </table>
-        </div>
-      `;
-      
-      cashDrawerContent.innerHTML = html;
-    }
-    
-    // Helper function to add a single item
-    function addSingleItem(device, color, storage, serial, carrier, condition, price, notes, location) {
-      // Current timestamp for acquisition date
-      const acquisitionDate = new Date().toISOString();
       
       // Convert dollars to cents
       const priceCents = price ? Math.round(parseFloat(price) * 100) : 0;
@@ -3923,67 +3252,27 @@
       showLoader();
       
       // Add system log
-      addSystemLog('transfer', `Initiated transfer of ${itemIds.length} items to warehouse. Notes: ${notes}`);
+      addSystemLog('transfer', `Transferred ${itemIds.length} items to warehouse. Notes: ${notes}`);
       
       // Simulate transfer request (in a real app, this would be a fetch to the server)
       setTimeout(() => {
         hideLoader();
         document.getElementById('transfer-modal').classList.remove('show');
         
-        // Get items to transfer
-        const itemsToTransfer = itemIds.map(id => {
-          const item = state.inventory.find(i => i.id == id);
-          return item;
-        }).filter(Boolean);
-        
-        // Add to pending transfers
-        addToPendingTransfers(itemsToTransfer, notes);
-        
-        // Update items in local state to pending_transfer status
+        // Update items in local state
         itemIds.forEach(id => {
           const item = state.inventory.find(i => i.id == id);
           if (item) {
-            item.status = 'pending_transfer';
+            item.location = 'warehouse';
+            item.status = 'transferred';
           }
         });
         
-        showAlert('success', `${itemIds.length} items pending transfer to warehouse.`);
+        showAlert('success', `Transferred ${itemIds.length} items to warehouse.`);
         
         // Re-render inventory
         renderInventory();
       }, 1000);
-    }
-    
-    // Add items to pending transfers
-    function addToPendingTransfers(items, notes) {
-      // Get existing pending transfers from localStorage
-      let pendingTransfers = JSON.parse(localStorage.getItem('pendingTransfers') || '[]');
-      
-      // Add new transfers with timestamp
-      const timestamp = new Date().toISOString();
-      
-      items.forEach(item => {
-        pendingTransfers.push({
-          id: item.id,
-          imei: item.imei,
-          device: item.device,
-          color: item.color,
-          storage: item.storage,
-          condition: item.condition,
-          carrier: item.carrier,
-          transferDate: timestamp,
-          notes: notes
-        });
-      });
-      
-      // Save updated pending transfers
-      localStorage.setItem('pendingTransfers', JSON.stringify(pendingTransfers));
-      
-      // Update pending transfers display if warehouse is unlocked
-      if (app.warehouseUnlocked) {
-        updatePendingTransfersDisplay();
-      }
-    }
     }
 
     // Load cash drawer
@@ -4199,265 +3488,20 @@
     function unlockWarehouse() {
       const passcode = document.getElementById('warehouse-passcode').value;
       
-      if (passcode === '2468') {
-        // Set warehouse as unlocked
-        state.warehouseUnlocked = true;
-        
-        // Show warehouse content
-        document.getElementById('warehouse-locked').style.display = 'none';
-        document.getElementById('warehouse-content').style.display = 'block';
-        
-        // Add system log
-        addSystemLog('access', 'Warehouse access granted');
-        
-        // Update pending transfers display
-        updatePendingTransfersDisplay();
-        
-        // Load warehouse data
-        loadWarehouse();
-        
-        // Ensure warehouse tab is active
-        const tabLinks = document.querySelectorAll('.tab');
-        const tabContents = document.querySelectorAll('.tab-content');
-        
-        // Hide all tabs
-        tabLinks.forEach(t => t.classList.remove('active'));
-        tabContents.forEach(c => c.classList.remove('active'));
-        
-        // Show warehouse tab
-        const warehouseTab = document.querySelector('a[data-tab="warehouse"]');
-        const warehouseContent = document.getElementById('warehouse-tab');
-        
-        if (warehouseTab) warehouseTab.classList.add('active');
-        if (warehouseContent) warehouseContent.classList.add('active');
-      } else {
+      if (passcode !== '2468') {
         showAlert('error', 'Invalid warehouse passcode.');
-      }
-    }
-    
-    // Update the pending transfers display
-    function updatePendingTransfersDisplay() {
-      const tableBody = document.getElementById('pending-transfers-table-body');
-      const noTransfersDiv = document.getElementById('no-pending-transfers');
-      
-      if (!tableBody || !noTransfersDiv) return;
-      
-      // Get pending transfers from localStorage
-      const pendingTransfers = JSON.parse(localStorage.getItem('pendingTransfers') || '[]');
-      
-      // Clear existing rows
-      tableBody.innerHTML = '';
-      
-      if (pendingTransfers.length === 0) {
-        // Show "no pending transfers" message
-        noTransfersDiv.style.display = 'block';
         return;
       }
       
-      // Hide "no pending transfers" message
-      noTransfersDiv.style.display = 'none';
-      
-      // Add rows for each pending transfer
-      pendingTransfers.forEach(item => {
-        const row = document.createElement('tr');
-        
-        // Format date
-        const date = new Date(item.transferDate);
-        const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-        
-        row.innerHTML = `
-          <td><input type="checkbox" class="pending-transfer-checkbox" data-id="${item.id}"></td>
-          <td>${escapeHtml(item.imei || '')}</td>
-          <td>${escapeHtml(item.device)} ${escapeHtml(item.color)} ${escapeHtml(item.storage)}</td>
-          <td>${escapeHtml(item.condition)}</td>
-          <td>${escapeHtml(item.carrier)}</td>
-          <td>${formattedDate}</td>
-          <td>
-            <button class="transfer-action-btn transfer-accept-btn" data-id="${item.id}">
-              <i class="fas fa-check"></i> Accept
-            </button>
-            <button class="transfer-action-btn transfer-reject-btn" data-id="${item.id}">
-              <i class="fas fa-times"></i> Reject
-            </button>
-          </td>
-        `;
-        
-        tableBody.appendChild(row);
-      });
-      
-      // Add event listeners to the accept/reject buttons
-      const acceptButtons = tableBody.querySelectorAll('.transfer-accept-btn');
-      const rejectButtons = tableBody.querySelectorAll('.transfer-reject-btn');
-      
-      acceptButtons.forEach(button => {
-        button.addEventListener('click', function() {
-          const id = this.getAttribute('data-id');
-          acceptTransfer(id);
-        });
-      });
-      
-      rejectButtons.forEach(button => {
-        button.addEventListener('click', function() {
-          const id = this.getAttribute('data-id');
-          rejectTransfer(id);
-        });
-      });
-    }
-    
-    // Accept a pending transfer
-    function acceptTransfer(id) {
-      // Get pending transfers from localStorage
-      let pendingTransfers = JSON.parse(localStorage.getItem('pendingTransfers') || '[]');
-      
-      // Find the transfer to accept
-      const transferIndex = pendingTransfers.findIndex(item => item.id === id);
-      
-      if (transferIndex === -1) {
-        showAlert('error', 'Transfer not found.');
-        return;
-      }
-      
-      const transfer = pendingTransfers[transferIndex];
-      
-      // Remove from pending transfers
-      pendingTransfers.splice(transferIndex, 1);
-      localStorage.setItem('pendingTransfers', JSON.stringify(pendingTransfers));
-      
-      // Update item status in inventory
-      const inventoryItems = state.inventory.filter(item => item.id === id);
-      if (inventoryItems.length > 0) {
-        inventoryItems.forEach(item => {
-          item.status = 'in_stock';
-          item.location = 'warehouse';
-        });
-      }
+      state.warehouseUnlocked = true;
+      document.getElementById('warehouse-locked').style.display = 'none';
+      document.getElementById('warehouse-content').style.display = 'block';
       
       // Add system log
-      addSystemLog('transfer_accept', `Accepted transfer of ${transfer.device} ${transfer.color} ${transfer.storage} to warehouse.`);
+      addSystemLog('access', 'Warehouse access granted');
       
-      // Show success message
-      showAlert('success', 'Transfer accepted successfully.');
-      
-      // Update pending transfers display
-      updatePendingTransfersDisplay();
-      
-      // Refresh warehouse inventory
+      // Load warehouse data
       loadWarehouse();
-    }
-    
-    // Reject a pending transfer
-    function rejectTransfer(id) {
-      // Get pending transfers from localStorage
-      let pendingTransfers = JSON.parse(localStorage.getItem('pendingTransfers') || '[]');
-      
-      // Find the transfer to reject
-      const transferIndex = pendingTransfers.findIndex(item => item.id === id);
-      
-      if (transferIndex === -1) {
-        showAlert('error', 'Transfer not found.');
-        return;
-      }
-      
-      const transfer = pendingTransfers[transferIndex];
-      
-      // Remove from pending transfers
-      pendingTransfers.splice(transferIndex, 1);
-      localStorage.setItem('pendingTransfers', JSON.stringify(pendingTransfers));
-      
-      // Update item status in inventory
-      const inventoryItems = state.inventory.filter(item => item.id === id);
-      if (inventoryItems.length > 0) {
-        inventoryItems.forEach(item => {
-          item.status = 'in_stock';
-          item.location = 'store';
-        });
-      }
-      
-      // Add system log
-      addSystemLog('transfer_reject', `Rejected transfer of ${transfer.device} ${transfer.color} ${transfer.storage} to warehouse.`);
-      
-      // Show success message
-      showAlert('success', 'Transfer rejected successfully.');
-      
-      // Update pending transfers display
-      updatePendingTransfersDisplay();
-    }
-    
-    // Accept all pending transfers
-    function acceptAllTransfers() {
-      // Get pending transfers from localStorage
-      const pendingTransfers = JSON.parse(localStorage.getItem('pendingTransfers') || '[]');
-      
-      if (pendingTransfers.length === 0) {
-        showAlert('warning', 'No pending transfers to accept.');
-        return;
-      }
-      
-      // Get IDs of all pending transfers
-      const transferIds = pendingTransfers.map(item => item.id);
-      
-      // Update all items in inventory
-      transferIds.forEach(id => {
-        const inventoryItems = state.inventory.filter(item => item.id === id);
-        if (inventoryItems.length > 0) {
-          inventoryItems.forEach(item => {
-            item.status = 'in_stock';
-            item.location = 'warehouse';
-          });
-        }
-      });
-      
-      // Add system log
-      addSystemLog('transfer_accept_all', `Accepted all ${pendingTransfers.length} pending transfers to warehouse.`);
-      
-      // Clear pending transfers
-      localStorage.setItem('pendingTransfers', '[]');
-      
-      // Show success message
-      showAlert('success', `${pendingTransfers.length} transfers accepted successfully.`);
-      
-      // Update pending transfers display
-      updatePendingTransfersDisplay();
-      
-      // Refresh warehouse inventory
-      loadWarehouse();
-    }
-    
-    // Reject all pending transfers
-    function rejectAllTransfers() {
-      // Get pending transfers from localStorage
-      const pendingTransfers = JSON.parse(localStorage.getItem('pendingTransfers') || '[]');
-      
-      if (pendingTransfers.length === 0) {
-        showAlert('warning', 'No pending transfers to reject.');
-        return;
-      }
-      
-      // Get IDs of all pending transfers
-      const transferIds = pendingTransfers.map(item => item.id);
-      
-      // Update all items in inventory
-      transferIds.forEach(id => {
-        const inventoryItems = state.inventory.filter(item => item.id === id);
-        if (inventoryItems.length > 0) {
-          inventoryItems.forEach(item => {
-            item.status = 'in_stock';
-            item.location = 'store';
-          });
-        }
-      });
-      
-      // Add system log
-      addSystemLog('transfer_reject_all', `Rejected all ${pendingTransfers.length} pending transfers to warehouse.`);
-      
-      // Clear pending transfers
-      localStorage.setItem('pendingTransfers', '[]');
-      
-      // Show success message
-      showAlert('success', `${pendingTransfers.length} transfers rejected successfully.`);
-      
-      // Update pending transfers display
-      updatePendingTransfersDisplay();
     }
 
     // Load warehouse
@@ -4682,37 +3726,20 @@
     function unlockAdmin() {
       const passcode = document.getElementById('admin-passcode').value;
       
-      if (passcode === '1337') {
-        // Set admin as unlocked
-        state.adminUnlocked = true;
-        
-        // Show admin content
-        document.getElementById('admin-locked').style.display = 'none';
-        document.getElementById('admin-content').style.display = 'block';
-        
-        // Add system log
-        addSystemLog('access', 'Admin access granted');
-        
-        // Load admin data
-        renderSystemLogs();
-        
-        // Ensure admin tab is active
-        const tabLinks = document.querySelectorAll('.tab');
-        const tabContents = document.querySelectorAll('.tab-content');
-        
-        // Hide all tabs
-        tabLinks.forEach(t => t.classList.remove('active'));
-        tabContents.forEach(c => c.classList.remove('active'));
-        
-        // Show admin tab
-        const adminTab = document.querySelector('a[data-tab="admin"]');
-        const adminContent = document.getElementById('admin-tab');
-        
-        if (adminTab) adminTab.classList.add('active');
-        if (adminContent) adminContent.classList.add('active');
-      } else {
+      if (passcode !== '1337') {
         showAlert('error', 'Invalid admin passcode.');
+        return;
       }
+      
+      state.adminUnlocked = true;
+      document.getElementById('admin-locked').style.display = 'none';
+      document.getElementById('admin-content').style.display = 'block';
+      
+      // Add system log
+      addSystemLog('access', 'Admin access granted');
+      
+      // Load admin data
+      renderSystemLogs();
     }
 
     // Render system logs
@@ -4936,6 +3963,230 @@
       });
     }
 
+    // Color list for typeahead
+    const COLOR_LIST = Array.from(new Set([
+      // Apple 2022+: iPhone 14/14 Plus
+      "Midnight","Starlight","Blue","Purple","Yellow","(PRODUCT)RED","Red",
+      // iPhone 14 Pro/Max
+      "Deep Purple","Space Black","Silver","Gold",
+      // iPhone 15/15 Plus
+      "Black","Light Blue","Light Green","Light Yellow","Light Pink","Pink","Green","Yellow",
+      // iPhone 15 Pro/Max
+      "Natural Titanium","Blue Titanium","White Titanium","Black Titanium","Titanium",
+      // iPhone 16/Pro (as used in your data)
+      "Desert","Desert Titanium","Natural",
+      // Samsung S22 family
+      "Phantom Black","Phantom White","Green","Pink Gold","Burgundy","Graphite","Sky Blue","Red",
+      // Samsung S23 family
+      "Cream","Lavender","Lime",
+      // Samsung S24 family
+      "Onyx Black","Marble Gray","Cobalt Violet","Amber Yellow",
+      "Titanium Black","Titanium Gray","Titanium Violet","Titanium Yellow","Titanium Blue","Titanium Green","Titanium Orange"
+    ])).sort((a,b)=>a.localeCompare(b));
+
+    // Device typeahead setup
+    function setupDeviceTypeahead() {
+      var input = document.getElementById('manual_device');
+      var box   = document.getElementById('manual-device-results');
+      var activeIdx = -1;
+      var lastQ = ""; var inflight = 0;
+
+      function hide() { box.style.display = 'none'; box.innerHTML = ''; activeIdx = -1; }
+      function show() { box.style.display = 'block'; }
+
+      function setStorageFromText(storageText) {
+        if (!storageText) return;
+        var val = storageText.toUpperCase().replace(/\s+/g,'').replace(/B$/, 'B'); // e.g., 256GB
+        var select = document.getElementById('manual_storage');
+        for (var i=0;i<select.options.length;i++) {
+          if (select.options[i].text.toUpperCase() === val) { select.selectedIndex = i; return; }
+        }
+      }
+
+      function parseColorAndStorage(deviceText) {
+        var upper = (deviceText || '').toUpperCase();
+        // Storage
+        var storage = null;
+        var m = upper.match(/(64|128|256|512|1024|2048)\s*GB\b|\b(1|2)\s*TB\b/);
+        if (m) {
+          if (m[1]) storage = m[1] + "GB";
+          else if (m[2]) storage = m[2] + "TB";
+        }
+        // Color: pick first match from COLOR_LIST
+        var color = null;
+        for (var i=0;i<COLOR_LIST.length;i++) {
+          var c = COLOR_LIST[i];
+          var re = new RegExp('(^|\\s)'+c.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')+'(\\s|$)', 'i');
+          if (re.test(deviceText)) { color = c; break; }
+        }
+        return { color: color, storage: storage };
+      }
+
+      function selectItem(obj) {
+        input.value = obj.device;
+        var parsed = parseColorAndStorage(obj.device);
+        if (parsed.color && !document.getElementById('manual_color').value) document.getElementById('manual_color').value = parsed.color;
+        if (parsed.storage) setStorageFromText(parsed.storage);
+        document.getElementById('manual_price').value = obj.price_dollars || 0;
+        hide();
+      }
+
+      function renderList(arr) {
+        if (!arr.length) { hide(); return; }
+        var html = arr.map(function(r, i) {
+          return '<div class="typeahead-item" data-idx="'+i+'">'
+            + '<div class="item-left"><div class="item-device">'+ r.device +'</div></div>'
+            + '<div class="item-price">$'+ (r.price_dollars || 0) +'</div></div>';
+        }).join('');
+        box.innerHTML = html;
+        Array.prototype.forEach.call(box.querySelectorAll('.typeahead-item'), function(el) {
+          el.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            var idx = parseInt(el.getAttribute('data-idx'), 10);
+            selectItem(arr[idx]);
+          });
+        });
+        show();
+      }
+
+      function debounce(fn, ms) { var t; return function(){ clearTimeout(t); var args=arguments; t=setTimeout(function(){ fn.apply(null,args); }, ms); }; }
+
+      var doFetch = debounce(async function(q) {
+        if (!q || q.length < 2) { hide(); return; }
+        if (q === lastQ) return;
+        lastQ = q;
+        var myTicket = ++inflight;
+        try {
+          // Since we don't have a real API, we'll use sample data
+          const sampleData = {
+            results: [
+              { device: "iPhone 15 Pro Max 256GB Blue Titanium", price_dollars: 1199 },
+              { device: "iPhone 15 Pro 128GB Natural Titanium", price_dollars: 999 },
+              { device: "iPhone 15 Plus 128GB Pink", price_dollars: 899 },
+              { device: "iPhone 15 128GB Black", price_dollars: 799 },
+              { device: "iPhone 14 Pro Max 256GB Deep Purple", price_dollars: 1099 },
+              { device: "iPhone 14 Pro 128GB Space Black", price_dollars: 999 },
+              { device: "iPhone 14 Plus 128GB Blue", price_dollars: 899 },
+              { device: "iPhone 14 128GB Purple", price_dollars: 799 },
+              { device: "iPhone 13 Pro Max 256GB Sierra Blue", price_dollars: 999 },
+              { device: "iPhone 13 Pro 128GB Graphite", price_dollars: 899 },
+              { device: "AirPods Pro (2nd gen)", price_dollars: 249 },
+              { device: "AirPods Max Silver", price_dollars: 549 },
+              { device: "Apple Watch Ultra 2", price_dollars: 799 },
+              { device: "Samsung Galaxy S24 Ultra 256GB Titanium Black", price_dollars: 1299 },
+              { device: "Samsung Galaxy S24+ 128GB Cobalt Violet", price_dollars: 999 }
+            ]
+          };
+          
+          // Filter results based on query
+          const filteredResults = sampleData.results.filter(item => 
+            item.device.toLowerCase().includes(q.toLowerCase())
+          );
+          
+          if (inflight !== myTicket) return;
+          renderList(filteredResults);
+        } catch (e) { hide(); }
+      }, 180);
+
+      if (!input || !box) return;
+      
+      input.addEventListener('input', function() { doFetch(input.value.trim()); });
+      
+      input.addEventListener('focus', function() {
+        if (input.value.trim()) {
+          doFetch(input.value.trim());
+        } else {
+          doFetch('i'); // Show some initial results
+        }
+      });
+
+      input.addEventListener('keydown', function(e) {
+        var items = box.querySelectorAll('.typeahead-item');
+        if (box.style.display === 'none' || !items.length) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = (activeIdx + 1) % items.length; }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = (activeIdx - 1 + items.length) % items.length; }
+        else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (activeIdx >= 0 && activeIdx < items.length) {
+            var idx = parseInt(items[activeIdx].getAttribute('data-idx'), 10);
+            var it = items[activeIdx];
+            selectItem({
+              device: it.querySelector('.item-device').textContent,
+              price_dollars: Number(it.querySelector('.item-price').textContent.replace(/^\D+/, '')) || 0
+            });
+          }
+        } else if (e.key === 'Escape') { hide(); }
+        Array.prototype.forEach.call(items, function(el, i){ if (i === activeIdx) el.classList.add('active'); else el.classList.remove('active'); });
+      });
+
+      input.addEventListener('blur', function() { setTimeout(hide, 120); });
+    }
+    
+    // Color typeahead setup
+    function setupColorTypeahead() {
+      var input = document.getElementById('manual_color');
+      var box   = document.getElementById('manual-color-results');
+      var activeIdx = -1;
+      
+      function hide() { box.style.display = 'none'; box.innerHTML = ''; activeIdx = -1; }
+      function show() { box.style.display = 'block'; }
+
+      function filterColors(q) {
+        if (!q) return COLOR_LIST.slice(0, 20);
+        q = q.toLowerCase();
+        return COLOR_LIST
+          .map(c => ({ c, score: (c.toLowerCase().startsWith(q) ? 2 : (c.toLowerCase().includes(q) ? 1 : 0)) }))
+          .filter(x => x.score > 0)
+          .sort((a,b) => b.score - a.score || a.c.localeCompare(b.c))
+          .slice(0, 20)
+          .map(x => x.c);
+      }
+
+      function renderList(arr) {
+        if (!arr.length) { hide(); return; }
+        var html = arr.map((name, i) => '<div class="typeahead-item" data-idx="'+i+'"><div>'+name+'</div></div>').join('');
+        box.innerHTML = html;
+        Array.prototype.forEach.call(box.querySelectorAll('.typeahead-item'), function(el) {
+          el.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            var idx = parseInt(el.getAttribute('data-idx'), 10);
+            input.value = arr[idx];
+            hide();
+          });
+        });
+        show();
+      }
+      
+      if (!input || !box) return;
+
+      input.addEventListener('input', function() {
+        var q = input.value.trim();
+        renderList(filterColors(q));
+      });
+      
+      input.addEventListener('focus', function() {
+        renderList(filterColors(input.value.trim()));
+      });
+
+      input.addEventListener('keydown', function(e) {
+        var items = box.querySelectorAll('.typeahead-item');
+        if (box.style.display === 'none' || !items.length) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = (activeIdx + 1) % items.length; }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = (activeIdx - 1 + items.length) % items.length; }
+        else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (activeIdx >= 0 && activeIdx < items.length) {
+            var idx = parseInt(items[activeIdx].getAttribute('data-idx'), 10);
+            input.value = items[idx].innerText.trim();
+            hide();
+          }
+        } else if (e.key === 'Escape') { hide(); }
+        Array.prototype.forEach.call(items, function(el, i){ if (i === activeIdx) el.classList.add('active'); else el.classList.remove('active'); });
+      });
+
+      input.addEventListener('blur', function() { setTimeout(hide, 120); });
+    }
+
     // Setup event listeners
     function setupEventListeners() {
       // Refresh balance button
@@ -4947,26 +4198,56 @@
       // Reset button
       document.getElementById('reset-btn').addEventListener('click', resetLookup);
       
-      // Notes button
-      const notesBtn = document.getElementById('manual_notes_btn');
-      if (notesBtn) {
-        notesBtn.addEventListener('click', showNotesModal);
-      }
-      
-      // Warehouse pending transfers buttons
-      const acceptAllBtn = document.getElementById('accept-all-transfers-btn');
-      if (acceptAllBtn) {
-        acceptAllBtn.addEventListener('click', acceptAllTransfers);
-      }
-      
-      const rejectAllBtn = document.getElementById('reject-all-transfers-btn');
-      if (rejectAllBtn) {
-        rejectAllBtn.addEventListener('click', rejectAllTransfers);
-      }
-      
       // Add manual item (old)
       if (document.getElementById('addManual')) {
         document.getElementById('addManual').addEventListener('click', addManualItem);
+      }
+      
+      // Notes button
+      if (document.getElementById('manual_notes_btn')) {
+        document.getElementById('manual_notes_btn').addEventListener('click', function() {
+          // Show notes modal
+          document.getElementById('notes-modal').classList.add('show');
+          
+          // Set content from hidden field if exists
+          const notesContent = document.getElementById('manual_notes') ? 
+                              document.getElementById('manual_notes').value : '';
+          document.getElementById('notes_content').value = notesContent;
+        });
+      }
+      
+      // Notes modal close button
+      if (document.getElementById('notes-modal-close')) {
+        document.getElementById('notes-modal-close').addEventListener('click', function() {
+          document.getElementById('notes-modal').classList.remove('show');
+        });
+      }
+      
+      // Notes modal cancel button
+      if (document.getElementById('notes-modal-cancel')) {
+        document.getElementById('notes-modal-cancel').addEventListener('click', function() {
+          document.getElementById('notes-modal').classList.remove('show');
+        });
+      }
+      
+      // Notes modal save button
+      if (document.getElementById('notes-modal-save')) {
+        document.getElementById('notes-modal-save').addEventListener('click', function() {
+          // Save notes to hidden field
+          const notes = document.getElementById('notes_content').value;
+          
+          // Create hidden field if it doesn't exist
+          if (!document.getElementById('manual_notes')) {
+            const hiddenNotes = document.createElement('input');
+            hiddenNotes.type = 'hidden';
+            hiddenNotes.id = 'manual_notes';
+            document.querySelector('.card-header').appendChild(hiddenNotes);
+          }
+          
+          document.getElementById('manual_notes').value = notes;
+          document.getElementById('notes-modal').classList.remove('show');
+          showAlert('success', 'Notes saved');
+        });
       }
       
       // Manual entry section buttons
@@ -5191,32 +4472,15 @@
 
     // Check API balance
     function checkBalance() {
-      // Get the actual API balance
+      // Since we're in a demo environment without a real API, we'll simulate the balance
       const balanceValue = document.getElementById('balance-value');
       
-      // Function to fetch API balance
-      async function fetchAPIBalance() {
-        try {
-          // Replace with your actual API endpoint
-          const response = await fetch('https://api.example.com/balance');
-          if (!response.ok) {
-            throw new Error('Failed to fetch balance');
-          }
-          const data = await response.json();
-          balanceValue.textContent = '$' + (data.balance || 0).toFixed(2);
-          balanceValue.classList.remove('error');
-        } catch (error) {
-          console.error('Error fetching API balance:', error);
-          balanceValue.textContent = 'Error';
-          balanceValue.classList.add('error');
-        }
-      }
+      // Set a simulated balance
+      const simulatedBalance = 1250.00;
+      balanceValue.textContent = '$' + simulatedBalance.toFixed(2);
       
-      // Initial fetch
-      fetchAPIBalance();
-      
-      // Add event listener to refresh button
-      document.getElementById('refresh-balance').addEventListener('click', fetchAPIBalance);
+      // Remove any error class if it exists
+      balanceValue.classList.remove('error');
       
       // Add system log
       addSystemLog('api', 'API balance checked successfully');
@@ -5272,484 +4536,12 @@
       });
     }
 
-    // Setup manual entry typeahead for device names with prices
-    function setupManualDeviceTypeahead() {
-      const deviceInput = document.getElementById('manual_device');
-      const deviceResults = document.getElementById('manual-device-results');
-      const priceInput = document.getElementById('manual_price');
-      
-      // Device suggestions with prices
-      const deviceData = [
-        { name: 'iPhone 15 Pro Max', price: 1099 },
-        { name: 'iPhone 15 Pro', price: 999 },
-        { name: 'iPhone 15 Plus', price: 899 },
-        { name: 'iPhone 15', price: 799 },
-        { name: 'iPhone 14 Pro Max', price: 999 },
-        { name: 'iPhone 14 Pro', price: 899 },
-        { name: 'iPhone 14 Plus', price: 799 },
-        { name: 'iPhone 14', price: 699 },
-        { name: 'iPhone 13 Pro Max', price: 899 },
-        { name: 'iPhone 13 Pro', price: 799 },
-        { name: 'iPhone 13', price: 699 },
-        { name: 'iPhone 13 Mini', price: 599 },
-        { name: 'iPhone SE (3rd gen)', price: 429 },
-        { name: 'iPhone 12 Pro Max', price: 799 },
-        { name: 'iPhone 12 Pro', price: 699 },
-        { name: 'iPhone 12', price: 599 },
-        { name: 'iPhone 12 Mini', price: 499 },
-        { name: 'iPad Pro 12.9" (M2)', price: 1099 },
-        { name: 'iPad Pro 11" (M2)', price: 799 },
-        { name: 'iPad Air (5th gen)', price: 599 },
-        { name: 'iPad Mini (6th gen)', price: 499 },
-        { name: 'iPad (10th gen)', price: 449 },
-        { name: 'Apple Watch Ultra 2', price: 799 },
-        { name: 'Apple Watch Series 9', price: 399 },
-        { name: 'Apple Watch SE (2nd gen)', price: 249 },
-        { name: 'AirPods Pro (2nd gen)', price: 249 },
-        { name: 'AirPods (3rd gen)', price: 179 },
-        { name: 'AirPods Max', price: 549 },
-        { name: 'MacBook Pro 16" (M3)', price: 2499 },
-        { name: 'MacBook Pro 14" (M3)', price: 1999 },
-        { name: 'MacBook Air 15" (M2)', price: 1299 },
-        { name: 'MacBook Air 13" (M2)', price: 1099 },
-        { name: 'Samsung Galaxy S24 Ultra', price: 1299 },
-        { name: 'Samsung Galaxy S24+', price: 999 },
-        { name: 'Samsung Galaxy S24', price: 799 },
-        { name: 'Samsung Galaxy S23 Ultra', price: 1199 },
-        { name: 'Samsung Galaxy S23+', price: 899 },
-        { name: 'Samsung Galaxy S23', price: 699 },
-        { name: 'Samsung Galaxy Z Fold5', price: 1799 },
-        { name: 'Samsung Galaxy Z Flip5', price: 999 },
-        { name: 'Samsung Galaxy Tab S9 Ultra', price: 1199 },
-        { name: 'Samsung Galaxy Tab S9+', price: 999 },
-        { name: 'Samsung Galaxy Tab S9', price: 799 },
-        { name: 'Samsung Galaxy Watch6', price: 299 },
-        { name: 'Samsung Galaxy Watch6 Classic', price: 399 },
-        { name: 'Samsung Galaxy Buds3 Pro', price: 199 },
-        { name: 'Samsung Galaxy Buds2 Pro', price: 149 }
-      ];
-      
-      if (!deviceInput || !deviceResults) return;
-      
-      // Function to create and display device list
-      function displayDeviceList(devices) {
-        deviceResults.innerHTML = '';
-        
-        devices.forEach(device => {
-          const item = document.createElement('div');
-          item.className = 'typeahead-item';
-          item.innerHTML = `<span>${device.name}</span><span class="price-tag">$${device.price}</span>`;
-          item.addEventListener('click', function() {
-            deviceInput.value = device.name;
-            priceInput.value = device.price;
-            deviceResults.classList.remove('show');
-          });
-          deviceResults.appendChild(item);
-        });
-        
-        if (devices.length > 0) {
-          deviceResults.classList.add('show');
-        } else {
-          deviceResults.classList.remove('show');
-        }
-      }
-      
-      // Show all options on focus
-      deviceInput.addEventListener('focus', function() {
-        displayDeviceList(deviceData.slice(0, 10));
-      });
-      
-      // Filter as user types
-      deviceInput.addEventListener('input', function() {
-        const value = this.value.toLowerCase();
-        
-        let matches;
-        if (value) {
-          matches = deviceData.filter(device => 
-            device.name.toLowerCase().includes(value)
-          ).slice(0, 10);
-        } else {
-          matches = deviceData.slice(0, 10);
-        }
-        
-        displayDeviceList(matches);
-      });
-      
-      // Hide dropdown when clicking outside
-      document.addEventListener('click', function(e) {
-        if (e.target !== deviceInput && !deviceResults.contains(e.target)) {
-          deviceResults.classList.remove('show');
-        }
-      });
-    }
-    
-    // Setup manual entry typeahead for colors with color swatches
-    function setupManualColorTypeahead() {
-      const colorInput = document.getElementById('manual_color');
-      const colorResults = document.getElementById('manual-color-results');
-      
-      // Official Apple and Samsung colors since 2023 with hex codes
-      const colors = [
-        // iPhone 15 Pro/Pro Max colors
-        { name: 'Natural Titanium', hex: '#E3D0C0' },
-        { name: 'Blue Titanium', hex: '#394F64' },
-        { name: 'White Titanium', hex: '#F5F5F0' },
-        { name: 'Black Titanium', hex: '#2F2F2F' },
-        
-        // iPhone 15/15 Plus colors
-        { name: 'Pink', hex: '#F8D3D3' },
-        { name: 'Yellow', hex: '#F8E8A6' },
-        { name: 'Green', hex: '#D1E0D9' },
-        { name: 'Blue', hex: '#C4D7EE' },
-        { name: 'Black', hex: '#1F1F1F' },
-        
-        // iPhone 14 Pro/Pro Max colors
-        { name: 'Deep Purple', hex: '#635666' },
-        { name: 'Gold', hex: '#F4E8CE' },
-        { name: 'Silver', hex: '#F1F2ED' },
-        { name: 'Space Black', hex: '#2F2F2F' },
-        
-        // iPhone 14/14 Plus colors
-        { name: 'Midnight', hex: '#1F1F1F' },
-        { name: 'Starlight', hex: '#F8F7F2' },
-        { name: 'Purple', hex: '#E5DDEA' },
-        { name: 'Red', hex: '#CC2127' },
-        
-        // iPad Pro colors
-        { name: 'Space Gray', hex: '#4A4A4A' },
-        
-        // Apple Watch colors
-        { name: 'Titanium', hex: '#D1CDCA' },
-        { name: 'Graphite', hex: '#5A5A5A' },
-        
-        // Samsung Galaxy colors
-        { name: 'Titanium Black', hex: '#2A2A2A' },
-        { name: 'Titanium Gray', hex: '#7D7E80' },
-        { name: 'Titanium Violet', hex: '#9C8CB3' },
-        { name: 'Titanium Yellow', hex: '#FBE698' },
-        { name: 'Onyx Black', hex: '#1A1A1A' },
-        { name: 'Marble Gray', hex: '#C0C0C0' },
-        { name: 'Cobalt Violet', hex: '#8A7FA8' },
-        { name: 'Amber Yellow', hex: '#FFCC66' },
-        { name: 'Phantom Black', hex: '#1A1A1A' },
-        { name: 'Cream', hex: '#FFF8E7' },
-        { name: 'Lavender', hex: '#E6E6FA' },
-        { name: 'Sky Blue', hex: '#87CEEB' },
-        { name: 'Lime', hex: '#C8E6C9' },
-        { name: 'Icy Blue', hex: '#A5D8F3' }
-      ];
-      
-      if (!colorInput || !colorResults) return;
-      
-      // Function to create and display color list
-      function displayColorList(colorsList) {
-        colorResults.innerHTML = '';
-        
-        colorsList.forEach(color => {
-          const item = document.createElement('div');
-          item.className = 'typeahead-item color-item';
-          item.innerHTML = `
-            <span class="color-swatch" style="background-color: ${color.hex}"></span>
-            <span class="color-name">${color.name}</span>
-          `;
-          item.addEventListener('click', function() {
-            colorInput.value = color.name;
-            colorResults.classList.remove('show');
-          });
-          colorResults.appendChild(item);
-        });
-        
-        if (colorsList.length > 0) {
-          colorResults.classList.add('show');
-        } else {
-          colorResults.classList.remove('show');
-        }
-      }
-      
-      // Show all options on focus
-      colorInput.addEventListener('focus', function() {
-        displayColorList(colors.slice(0, 10));
-      });
-      
-      // Filter as user types
-      colorInput.addEventListener('input', function() {
-        const value = this.value.toLowerCase();
-        
-        let matches;
-        if (value) {
-          matches = colors.filter(color => 
-            color.name.toLowerCase().includes(value)
-          ).slice(0, 10);
-        } else {
-          matches = colors.slice(0, 10);
-        }
-        
-        displayColorList(matches);
-      });
-      
-      // Hide dropdown when clicking outside
-      document.addEventListener('click', function(e) {
-        if (e.target !== colorInput && !colorResults.contains(e.target)) {
-          colorResults.classList.remove('show');
-        }
-      });
-    }
-    
-    // Setup serial number input handling for batch entry
-    function setupSerialInputs() {
-      const quantityInput = document.getElementById('manual_quantity');
-      const serialContainer = document.getElementById('serial-inputs-container');
-      
-      if (!quantityInput || !serialContainer) return;
-      
-      // Initial serial input is already in the DOM
-      const initialInput = document.getElementById('manual_imei');
-      if (initialInput) {
-        initialInput.addEventListener('keydown', function(e) {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            const nextInput = this.nextElementSibling;
-            if (nextInput && nextInput.classList.contains('serial-input')) {
-              nextInput.focus();
-            } else {
-              // Create a new input if this is the last one
-              addSerialInput();
-            }
-          }
-        });
-      }
-      
-      // Function to add a new serial input
-      function addSerialInput() {
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.className = 'serial-input';
-        input.placeholder = 'IMEI or Serial Number';
-        
-        input.addEventListener('keydown', function(e) {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            const nextInput = this.nextElementSibling;
-            if (nextInput && nextInput.classList.contains('serial-input')) {
-              nextInput.focus();
-            } else {
-              // Create a new input if this is the last one
-              addSerialInput();
-            }
-          }
-        });
-        
-        serialContainer.appendChild(input);
-        input.focus();
-      }
-      
-      // Update serial inputs when quantity changes
-      quantityInput.addEventListener('change', function() {
-        const quantity = parseInt(this.value) || 1;
-        const currentInputs = serialContainer.querySelectorAll('.serial-input');
-        
-        // Add inputs if needed
-        if (quantity > currentInputs.length) {
-          for (let i = currentInputs.length; i < quantity; i++) {
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.className = 'serial-input';
-            input.placeholder = 'IMEI or Serial Number';
-            
-            input.addEventListener('keydown', function(e) {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                const nextInput = this.nextElementSibling;
-                if (nextInput && nextInput.classList.contains('serial-input')) {
-                  nextInput.focus();
-                } else {
-                  // Create a new input if this is the last one and we're below quantity
-                  if (serialContainer.querySelectorAll('.serial-input').length < quantity) {
-                    addSerialInput();
-                  }
-                }
-              }
-            });
-            
-            serialContainer.appendChild(input);
-          }
-        }
-        // Remove inputs if too many
-        else if (quantity < currentInputs.length) {
-          for (let i = currentInputs.length - 1; i >= quantity; i--) {
-            serialContainer.removeChild(currentInputs[i]);
-          }
-        }
-      });
-    }
-    
-    // Setup purchase log event listeners
-    function setupPurchaseLogEventListeners() {
-      // Export purchase log to CSV
-      const exportBtn = document.getElementById('export-purchase-log-btn');
-      if (exportBtn) {
-        exportBtn.addEventListener('click', exportPurchaseLogToCSV);
-      }
-      
-      // Print purchase log
-      const printBtn = document.getElementById('print-purchase-log-btn');
-      if (printBtn) {
-        printBtn.addEventListener('click', function() {
-          window.print();
-        });
-      }
-      
-      // Apply purchase log filters
-      const applyFilterBtn = document.getElementById('apply-purchase-log-filter');
-      if (applyFilterBtn) {
-        applyFilterBtn.addEventListener('click', filterPurchaseLog);
-      }
-      
-      // Search input
-      const searchInput = document.getElementById('purchase-log-search');
-      if (searchInput) {
-        searchInput.addEventListener('input', function() {
-          // Debounce search to avoid excessive filtering
-          clearTimeout(this.searchTimeout);
-          this.searchTimeout = setTimeout(filterPurchaseLog, 300);
-        });
-      }
-    }
-    
-    // Direct tab click handlers - more reliable approach
-    function setupTabNavigation() {
-      // Get all tab links
-      const lookupTab = document.querySelector('a[href="#lookup"]');
-      const inventoryTab = document.querySelector('a[href="#inventory"]');
-      const cashDrawerTab = document.querySelector('a[href="#cash-drawer"]');
-      const warehouseTab = document.querySelector('a[href="#warehouse"]');
-      const adminTab = document.querySelector('a[href="#admin"]');
-      
-      // Get all tab content divs
-      const lookupContent = document.getElementById('lookup-tab');
-      const inventoryContent = document.getElementById('inventory-tab');
-      const cashDrawerContent = document.getElementById('cash-drawer-tab');
-      const warehouseContent = document.getElementById('warehouse-tab');
-      const adminContent = document.getElementById('admin-tab');
-      
-      // Function to hide all tabs
-      function hideAllTabs() {
-        lookupContent.classList.remove('active');
-        inventoryContent.classList.remove('active');
-        cashDrawerContent.classList.remove('active');
-        warehouseContent.classList.remove('active');
-        adminContent.classList.remove('active');
-        
-        lookupTab.classList.remove('active');
-        inventoryTab.classList.remove('active');
-        cashDrawerTab.classList.remove('active');
-        warehouseTab.classList.remove('active');
-        adminTab.classList.remove('active');
-      }
-      
-      // Add click handlers for each tab
-      if (lookupTab) {
-        lookupTab.addEventListener('click', function(e) {
-          e.preventDefault();
-          hideAllTabs();
-          lookupTab.classList.add('active');
-          lookupContent.classList.add('active');
-        });
-      }
-      
-      if (inventoryTab) {
-        inventoryTab.addEventListener('click', function(e) {
-          e.preventDefault();
-          hideAllTabs();
-          inventoryTab.classList.add('active');
-          inventoryContent.classList.add('active');
-        });
-      }
-      
-      if (cashDrawerTab) {
-        cashDrawerTab.addEventListener('click', function(e) {
-          e.preventDefault();
-          hideAllTabs();
-          cashDrawerTab.classList.add('active');
-          cashDrawerContent.classList.add('active');
-        });
-      }
-      
-      if (warehouseTab) {
-        warehouseTab.addEventListener('click', function(e) {
-          e.preventDefault();
-          hideAllTabs();
-          warehouseTab.classList.add('active');
-          warehouseContent.classList.add('active');
-        });
-      }
-      
-      if (adminTab) {
-        adminTab.addEventListener('click', function(e) {
-          e.preventDefault();
-          hideAllTabs();
-          adminTab.classList.add('active');
-          adminContent.classList.add('active');
-        });
-      }
-      
-      // Handle sub-tabs similarly with direct references
-      const setupSubTabs = function(parentId, tabIds) {
-        const parent = document.getElementById(parentId);
-        if (!parent) return;
-        
-        tabIds.forEach(id => {
-          const tabLink = document.querySelector(`a[data-subtab="${id}"]`);
-          const tabContent = document.getElementById(`${id}-tab`);
-          
-          if (tabLink && tabContent) {
-            tabLink.addEventListener('click', function(e) {
-              e.preventDefault();
-              
-              // Hide all sub-tabs in this parent
-              const allSubTabs = parent.querySelectorAll('.sub-tab-content');
-              const allSubLinks = document.querySelectorAll(`a[data-subtab^="${id.split('-')[0]}"]`);
-              
-              allSubTabs.forEach(tab => tab.classList.remove('active'));
-              allSubLinks.forEach(link => link.classList.remove('active'));
-              
-              // Show this sub-tab
-              tabLink.classList.add('active');
-              tabContent.classList.add('active');
-            });
-          }
-        });
-      };
-      
-      // Setup admin sub-tabs
-      setupSubTabs('admin-tab', [
-        'admin-dashboard', 
-        'admin-customers', 
-        'admin-invoices', 
-        'admin-logs', 
-        'admin-settings',
-        'admin-users',
-        'admin-purchase-log',
-        'admin-backup'
-      ]);
-    }
-
     document.addEventListener('DOMContentLoaded', function() {
-      // Setup tab navigation
-      setupTabNavigation();
-      
       // Setup device typeahead
       setupDeviceTypeahead();
       
       // Setup color typeahead
       setupColorTypeahead();
-      
-      // Setup manual entry typeahead
-      setupManualDeviceTypeahead();
-      setupManualColorTypeahead();
-      
-      // Setup serial inputs for batch entry
-      setupSerialInputs();
       
       // Setup event listeners
       setupEventListeners();
@@ -5757,44 +4549,28 @@
       // Setup sub-tab event listeners
       setupSubTabEventListeners();
       
-      // Setup purchase log event listeners
-      setupPurchaseLogEventListeners();
-      
-      // Initialize purchase log table
-      updatePurchaseLogTable();
-      
       // Check API balance
       checkBalance();
     });
   </script>
   
-  <!-- Direct tab navigation script -->
-  <script>
-    // Execute immediately to ensure tabs work
-    document.addEventListener('DOMContentLoaded', function() {
-      // Direct tab click handlers
-      const tabLinks = document.querySelectorAll('.tab');
-      const tabContents = document.querySelectorAll('.tab-content');
+  <!-- Notes Modal -->
+  <div class="modal" id="notes-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Item Notes</h3>
+        <button class="modal-close" id="notes-modal-close">&times;</button>
+      </div>
       
-      tabLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
-          e.preventDefault();
-          
-          const targetId = this.getAttribute('data-tab');
-          const targetContent = document.getElementById(targetId + '-tab');
-          
-          if (targetContent) {
-            // Hide all tabs
-            tabLinks.forEach(t => t.classList.remove('active'));
-            tabContents.forEach(c => c.classList.remove('active'));
-            
-            // Show selected tab
-            this.classList.add('active');
-            targetContent.classList.add('active');
-          }
-        });
-      });
-    });
-  </script>
+      <div class="form-group">
+        <textarea id="notes_content" placeholder="Enter notes about this item..." rows="5" style="width: 100%; resize: vertical;"></textarea>
+      </div>
+      
+      <div class="modal-footer">
+        <button class="btn secondary" id="notes-modal-cancel">Cancel</button>
+        <button class="btn" id="notes-modal-save">Save Notes</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
