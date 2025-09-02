@@ -4062,32 +4062,27 @@
         lastQ = q;
         var myTicket = ++inflight;
         try {
-          // Since we don't have a real API, we'll use sample data
-          const sampleData = {
-            results: [
-              { device: "iPhone 15 Pro Max 256GB Blue Titanium", price_dollars: 1199 },
-              { device: "iPhone 15 Pro 128GB Natural Titanium", price_dollars: 999 },
-              { device: "iPhone 15 Plus 128GB Pink", price_dollars: 899 },
-              { device: "iPhone 15 128GB Black", price_dollars: 799 },
-              { device: "iPhone 14 Pro Max 256GB Deep Purple", price_dollars: 1099 },
-              { device: "iPhone 14 Pro 128GB Space Black", price_dollars: 999 },
-              { device: "iPhone 14 Plus 128GB Blue", price_dollars: 899 },
-              { device: "iPhone 14 128GB Purple", price_dollars: 799 },
-              { device: "iPhone 13 Pro Max 256GB Sierra Blue", price_dollars: 999 },
-              { device: "iPhone 13 Pro 128GB Graphite", price_dollars: 899 },
-              { device: "AirPods Pro (2nd gen)", price_dollars: 249 },
-              { device: "AirPods Max Silver", price_dollars: 549 },
-              { device: "Apple Watch Ultra 2", price_dollars: 799 },
-              { device: "Samsung Galaxy S24 Ultra 256GB Titanium Black", price_dollars: 1299 },
-              { device: "Samsung Galaxy S24+ 128GB Cobalt Violet", price_dollars: 999 }
-            ]
-          };
-          
+          // Fetch device data from CSV once and cache
+          if (!window.fetchedDeviceData) {
+            const response = await fetch('https://allenslists.pages.dev/data/prices.csv');
+            const csvText = await response.text();
+            const lines = csvText.trim().split('\n');
+            const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+            const deviceIndex = headers.indexOf('device');
+            const priceIndex = headers.indexOf('price');
+            window.fetchedDeviceData = lines.slice(1).map(line => {
+              const cols = line.split(',');
+              return {
+                device: cols[deviceIndex] || '',
+                price_dollars: parseFloat(cols[priceIndex]) || 0
+              };
+            });
+          }
+
           // Filter results based on query
-          const filteredResults = sampleData.results.filter(item => 
+          const filteredResults = window.fetchedDeviceData.filter(item => 
             item.device.toLowerCase().includes(q.toLowerCase())
           );
-          
           if (inflight !== myTicket) return;
           renderList(filteredResults);
         } catch (e) { hide(); }
