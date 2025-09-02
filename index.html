@@ -1,22 +1,510 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html>
 <head>
-	<meta charset="UTF-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<title>Enhanced Inventory Management</title>
-	<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
-	<style>
-		/* ... all your styles here ... */
-	</style>
-	<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
-	<script type="module" src="./functions/utils/typeahead.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Enhanced Inventory Management</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #00e29b;
+      --primary-dark: #00b37a;
+      --secondary: #18344a;
+      --secondary-light: #1f4060;
+      --background: #0b0f14;
+      --card-bg: #0f141a;
+      --input-bg: #0d1218;
+      --border: #213244;
+      --text: #e6f1ff;
+      --text-muted: #a0b8d0;
+      --success: #48ffb3;
+      --warning: #ffb648;
+      --error: #ff4848;
+      --info: #48b6ff;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      background-color: var(--background);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 20px;
+    }
+    
+    h1, h2, h3, h4, h5, h6 {
+      color: var(--text);
+      margin-bottom: 15px;
+    }
+    
+    a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+    
+    a:hover {
+      text-decoration: underline;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+    }
+    
+    .header h1 i {
+      margin-right: 10px;
+      color: var(--primary);
+    }
+    
+    .header-right {
+      display: flex;
+      align-items: center;
+    }
+    
+    .api-balance {
+      background: var(--secondary);
+      padding: 8px 15px;
+      border-radius: 8px;
+      margin-right: 15px;
+      display: flex;
+      align-items: center;
+    }
+    
+    .api-balance i {
+      margin-right: 8px;
+      color: var(--primary);
+    }
+    
+    .refresh-btn {
+      background: none;
+      border: none;
+      color: var(--primary);
+      cursor: pointer;
+      margin-left: 8px;
+    }
+    
+    .tabs {
+      display: flex;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    
+    .tab {
+      padding: 10px 20px;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      margin-right: 10px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+    }
+    
+    .tab i {
+      margin-right: 8px;
+    }
+    
+    .tab:hover {
+      color: var(--text);
+      text-decoration: none;
+    }
+    
+    .tab.active {
+      color: var(--primary);
+      border-bottom: 2px solid var(--primary);
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    .card {
+      background-color: var(--card-bg);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    
+    .card-header h2 {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    textarea, input[type="text"], input[type="number"], input[type="password"], select {
+      width: 100%;
+      padding: 10px 15px;
+      background-color: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 14px;
+      margin-bottom: 15px;
+      transition: border-color 0.3s ease;
+    }
+    
+    textarea:focus, input[type="text"]:focus, input[type="number"]:focus, input[type="password"]:focus, select:focus {
+      border-color: var(--primary);
+      outline: none;
+    }
+    
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 16px;
+      background-color: var(--primary);
+      color: var(--background);
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .btn i {
+      margin-right: 8px;
+    }
+    
+    .btn:hover {
+      background-color: var(--primary-dark);
+    }
+    
+    .btn-secondary {
+      background-color: var(--secondary);
+      color: var(--text);
+    }
+    
+    .btn-secondary:hover {
+      background-color: var(--secondary-light);
+    }
+    
+    .btn-group {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .form-group {
+      margin-bottom: 15px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--text-muted);
+    }
+    
+    .form-row {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+    
+    .form-row > div {
+      flex: 1;
+    }
+    
+    .alert {
+      padding: 12px 15px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+    }
+    
+    .alert i {
+      margin-right: 10px;
+      font-size: 18px;
+    }
+    
+    .success {
+      background-color: rgba(72, 255, 179, 0.1);
+      border-left: 4px solid var(--success);
+      color: var(--success);
+    }
+    
+    .error {
+      background-color: rgba(255, 72, 72, 0.1);
+      border-left: 4px solid var(--error);
+      color: var(--error);
+    }
+    
+    .warning {
+      background-color: rgba(255, 182, 72, 0.1);
+      border-left: 4px solid var(--warning);
+      color: var(--warning);
+    }
+    
+    .info {
+      background-color: rgba(72, 182, 255, 0.1);
+      border-left: 4px solid var(--info);
+      color: var(--info);
+    }
+    
+    .table-responsive {
+      overflow-x: auto;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    th, td {
+      padding: 12px 15px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    th {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    
+    tr:hover {
+      background-color: rgba(255, 255, 255, 0.02);
+    }
+    
+    .tag {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      margin-right: 5px;
+      margin-top: 5px;
+    }
+    
+    .tag.success {
+      background-color: rgba(72, 255, 179, 0.1);
+      color: var(--success);
+      border: 1px solid rgba(72, 255, 179, 0.3);
+    }
+    
+    .tag.error {
+      background-color: rgba(255, 72, 72, 0.1);
+      color: var(--error);
+      border: 1px solid rgba(255, 72, 72, 0.3);
+    }
+    
+    .tag.warning {
+      background-color: rgba(255, 182, 72, 0.1);
+      color: var(--warning);
+      border: 1px solid rgba(255, 182, 72, 0.3);
+    }
+    
+    .tag.info {
+      background-color: rgba(72, 182, 255, 0.1);
+      color: var(--info);
+      border: 1px solid rgba(72, 182, 255, 0.3);
+    }
+    
+    .warning-tag {
+      margin-left: 8px;
+    }
+    
+    .muted {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+    
+    .right {
+      text-align: right;
+    }
+    
+    .center {
+      text-align: center;
+    }
+    
+    .loader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(11, 15, 20, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      visibility: hidden;
+      opacity: 0;
+      transition: all 0.3s ease;
+    }
+    
+    .loader.show {
+      visibility: visible;
+      opacity: 1;
+    }
+    
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(0, 226, 155, 0.1);
+      border-left-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(11, 15, 20, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      visibility: hidden;
+      opacity: 0;
+      transition: all 0.3s ease;
+    }
+    
+    .modal.show {
+      visibility: visible;
+      opacity: 1;
+    }
+    
+    .modal-content {
+      background-color: var(--card-bg);
+      border-radius: 10px;
+      padding: 20px;
+      width: 90%;
+      max-width: 500px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      transform: translateY(-20px);
+      transition: all 0.3s ease;
+    }
+    
+    .modal.show .modal-content {
+      transform: translateY(0);
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .modal-header h3 {
+      margin: 0;
+      font-size: 18px;
+    }
+    
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 20px;
+      cursor: pointer;
+    }
+    
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid var(--border);
+    }
+    
+    .compact-manual-entry {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+    
+    .compact-manual-entry input,
+    .compact-manual-entry select {
+      margin-bottom: 0;
+    }
+    
+    .typeahead {
+      position: relative;
+    }
+    
+    .typeahead-results {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      width: 100%;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 100;
+      display: none;
+    }
+    
+    .typeahead-results.show {
+      display: block;
+    }
+    
+    /* More styles... */
+  </style>
+  <script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
+  <script type="module" src="./functions/utils/typeahead.js"></script>
 </head>
 <body>
-	<div class="container">
-		<!-- your entire body content here (unchanged) -->
-	</div>
-	<script>
-		// Your entire JavaScript code here (unchanged)
-	</script>
+  <div class="container">
+    <!-- Your full body content here ... -->
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      setupDeviceTypeahead();
+      setupColorTypeahead();
+      setupEventListeners();
+      setupSubTabEventListeners();
+      checkBalance();
+    });
+  </script>
 </body>
 </html>
