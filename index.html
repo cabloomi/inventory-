@@ -617,25 +617,20 @@
       </div>
       
       <!-- Manual Item Entry -->
-      <div class="card">
-        <div class="card-header">
-          <h2>Add Manual Item</h2>
+      <div class="card" style="padding:8px;">
+        <div class="card-header" style="padding-bottom:4px;">
+          <h2 style="font-size:1.2em; margin:0;">Add Manual Item</h2>
         </div>
-        
-        <div class="row">
-          <div class="typeahead" style="flex: 3 1 320px;">
-            <input type="text" id="m_device" placeholder="Start typing (e.g., AirPods Pro 2, iPhone 13 Mini 128GB)" autocomplete="off" />
-            <div id="m_suggest" class="suggestions" style="display:none;"></div>
+        <div class="row" style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+          <div class="typeahead" style="flex:1 1 200px; margin:0;">
+            <input type="text" id="m_device" placeholder="Start typing (e.g., AirPods Pro 2, iPhone 13 Mini 128GB)" autocomplete="off" style="height:28px; font-size:0.9em;" />
+            <div id="m_suggest" class="suggestions" style="display:none; max-height:100px;"></div>
           </div>
-
-          <!-- Color dynamic search -->
-          <div class="typeahead" style="flex: 2 1 220px;">
-            <input type="text" id="m_color" placeholder="Color (type to search)" autocomplete="off" />
-            <div id="m_color_suggest" class="suggestions" style="display:none;"></div>
+          <div class="typeahead" style="flex:1 1 120px; margin:0;">
+            <input type="text" id="m_color" placeholder="Color (type to search)" autocomplete="off" style="height:28px; font-size:0.9em;" />
+            <div id="m_color_suggest" class="suggestions" style="display:none; max-height:100px;"></div>
           </div>
-
-          <!-- Storage dropdown (narrow) -->
-          <select id="m_storage" style="width: 120px;">
+          <select id="m_storage" style="flex:0 0 80px; height:28px; font-size:0.9em;">
             <option value="">Storage</option>
             <option>64GB</option>
             <option>128GB</option>
@@ -644,17 +639,15 @@
             <option>1TB</option>
             <option>2TB</option>
           </select>
-
-          <select id="m_carrier">
+          <select id="m_carrier" style="flex:0 0 100px; height:28px; font-size:0.9em;">
             <option value="Unknown">Carrier</option>
             <option>Unlocked</option><option>Verizon</option><option>T-Mobile</option><option>AT&T</option>
             <option>Xfinity</option><option>Spectrum</option><option>US Cellular</option><option>Cricket</option>
           </select>
-          <input type="number" id="m_qty" placeholder="Qty" min="1" step="1" value="1" style="width:90px" />
-          <input type="number" id="m_price" placeholder="Unit Price ($)" min="0" step="1" style="width:140px" />
-          <button class="btn" id="addManual">Add</button>
+          <input type="number" id="m_qty" placeholder="Qty" min="1" step="1" value="1" style="flex:0 0 60px; height:28px; font-size:0.9em;" />
+          <input type="number" id="m_price" placeholder="Unit Price ($)" min="0" step="1" style="flex:0 0 100px; height:28px; font-size:0.9em;" />
+          <button class="btn" id="addManual" style="height:28px; padding:0 8px; font-size:0.9em;">Add</button>
         </div>
-      </div>
       
       <div id="out"></div>
       <div class="totals" id="totals"></div>
