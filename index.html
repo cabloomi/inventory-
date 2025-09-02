@@ -4039,9 +4039,10 @@
       function renderList(arr) {
         if (!arr.length) { hide(); return; }
         var html = arr.map(function(r, i) {
+          const priceFormatted = (typeof r.price_dollars === 'number' ? r.price_dollars.toFixed(2) : '0.00');
           return '<div class="sug-item" data-idx="'+i+'">'
             + '<div class="sug-left"><div class="sug-device">'+ r.device +'</div><div class="sug-sheet">'+ (r.sheet || '') +'</div></div>'
-            + '<div class="sug-price">$'+ (r.price_dollars || 0) +'</div></div>';
+            + '<div class="sug-price">$'+ priceFormatted +'</div></div>';
         }).join('');
         box.innerHTML = html;
         Array.prototype.forEach.call(box.querySelectorAll('.sug-item'), function(el) {
