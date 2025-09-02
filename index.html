@@ -3729,18 +3729,22 @@
       }, 1000);
     }
 
-    // Unlock admin panel
+    // Unlock admin panel with passcode
     function unlockAdmin() {
-      // No passcode required
-      state.adminUnlocked = true;
-      document.getElementById('admin-locked').style.display = 'none';
-      document.getElementById('admin-content').style.display = 'block';
-      
-      // Add system log
-      addSystemLog('access', 'Admin access granted');
-      
-      // Load admin data
-      renderSystemLogs();
+      const passcode = prompt('Enter admin passcode:');
+      if (passcode === '1337') {
+        state.adminUnlocked = true;
+        document.getElementById('admin-locked').style.display = 'none';
+        document.getElementById('admin-content').style.display = 'block';
+        
+        // Add system log
+        addSystemLog('access', 'Admin access granted');
+        
+        // Load admin data
+        renderSystemLogs();
+      } else {
+        alert('Incorrect passcode.');
+      }
     }
 
     // Render system logs
