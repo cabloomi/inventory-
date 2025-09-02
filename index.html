@@ -4032,14 +4032,15 @@
         var parsed = parseColorAndStorage(obj.device);
         if (parsed.color && !document.getElementById('m_color').value) document.getElementById('m_color').value = parsed.color;
         if (parsed.storage) setStorageFromText(parsed.storage);
-        document.getElementById('manual_price').value = obj.price_dollars || 0;
+        const priceInt = obj.price_dollars && !isNaN(obj.price_dollars) ? Math.round(obj.price_dollars) : 0;
+        document.getElementById('manual_price').value = priceInt > 0 ? priceInt : '';
         hide();
       }
 
       function renderList(arr) {
         if (!arr.length) { hide(); return; }
         var html = arr.map(function(r, i) {
-          const priceFormatted = (typeof r.price_dollars === 'number' ? r.price_dollars.toFixed(2) : '0.00');
+          const priceFormatted = (typeof r.price_dollars === 'number' && !isNaN(r.price_dollars) ? Math.round(r.price_dollars) : 0);
           return '<div class="sug-item" data-idx="'+i+'">'
             + '<div class="sug-left"><div class="sug-device">'+ r.device +'</div><div class="sug-sheet">'+ (r.sheet || '') +'</div></div>'
             + '<div class="sug-price">$'+ priceFormatted +'</div></div>';
@@ -4069,8 +4070,8 @@
             const csvText = await response.text();
             const lines = csvText.trim().split('\n');
             const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-            const deviceIndex = headers.indexOf('device');
-            const priceIndex = headers.indexOf('price');
+        const deviceIndex = headers.indexOf('device');
+        const priceIndex = 3; // fixed column D price index
             // Improved CSV parse to handle quoted fields with commas
             window.fetchedDeviceData = lines.slice(1).map(line => {
               // Use regex to split CSV respecting quoted commas
