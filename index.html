@@ -2986,6 +2986,16 @@
           // Render recent items
           renderRecentItems();
           
+          // Switch to lookup tab to show recent items
+          document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+          const lookupTab = document.querySelector('.tab[data-tab="lookup"]');
+          const lookupTabContent = document.getElementById('lookup-tab');
+          if (lookupTab && lookupTabContent) {
+            lookupTab.classList.add('active');
+            lookupTabContent.classList.add('active');
+          }
+          
           // Update cash drawer if needed
           if (location === 'store' && state.cashDrawer) {
             renderCashDrawer();
