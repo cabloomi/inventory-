@@ -4070,13 +4070,17 @@
             const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
             const deviceIndex = headers.indexOf('device');
             const priceIndex = headers.indexOf('price');
+            // Improved CSV parse to handle quoted fields with commas
             window.fetchedDeviceData = lines.slice(1).map(line => {
-              const cols = line.split(',');
+              // Use regex to split CSV respecting quoted commas
+              const cols = line.match(/(?:"([^"]*(?:""[^"]*)*)"|([^",]+))(?=,|$)/g).map(s => s.replace(/^"|"$/g, '').replace(/""/g, '"').trim());
               let priceRaw = cols[priceIndex] || '';
-              priceRaw = priceRaw.trim().replace(/^"|"$/g, '');
+              priceRaw = priceRaw.trim();
               const price = parseFloat(priceRaw) || 0;
+              let deviceRaw = cols[deviceIndex] || '';
+              deviceRaw = deviceRaw.trim();
               return {
-                device: cols[deviceIndex] || '',
+                device: deviceRaw,
                 price_dollars: price
               };
             });
