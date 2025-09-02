@@ -4072,11 +4072,15 @@
             const priceIndex = headers.indexOf('price');
             window.fetchedDeviceData = lines.slice(1).map(line => {
               const cols = line.split(',');
+              let priceRaw = cols[priceIndex] || '';
+              priceRaw = priceRaw.trim().replace(/^"|"$/g, '');
+              const price = parseFloat(priceRaw) || 0;
               return {
                 device: cols[deviceIndex] || '',
-                price_dollars: parseFloat(cols[priceIndex]) || 0
+                price_dollars: price
               };
             });
+            console.log('Parsed device data:', window.fetchedDeviceData);
           }
 
           // Filter results based on query
