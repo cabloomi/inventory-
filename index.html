@@ -4081,7 +4081,7 @@
               deviceRaw = deviceRaw.trim();
               return {
                 device: deviceRaw,
-                price_dollars: price
+                price_dollars: price / 100
               };
             });
             console.log('Parsed device data:', window.fetchedDeviceData);
