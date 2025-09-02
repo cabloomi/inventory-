@@ -862,123 +862,7 @@
         </div>
       </div>
       
-      <!-- Manual Entry Section -->
-      <div class="card">
-        <div class="card-header">
-          <h2>Manual Item Entry</h2>
-          <div class="btn-group">
-            <button class="btn" id="add-to-store-btn">
-              <i class="fas fa-store"></i> Add to Store
-            </button>
-            <button class="btn" id="add-to-warehouse-btn">
-              <i class="fas fa-warehouse"></i> Add to Warehouse
-            </button>
-          </div>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: 3fr 2fr 1fr 1.5fr 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; align-items: end;">
-          <div>
-            <label>Device</label>
-            <div class="typeahead">
-              <input type="text" id="m_device" placeholder="Device Name">
-              <div class="suggestions" id="m_suggest" style="display:none;"></div>
-            </div>
-          </div>
-          <div>
-            <label>Color</label>
-            <div class="typeahead">
-              <input type="text" id="m_color" placeholder="Color">
-              <div class="suggestions" id="m_color_suggest" style="display:none;"></div>
-            </div>
-          </div>
-          <div>
-            <label>Storage</label>
-            <select id="manual_storage">
-              <option value="">Select</option>
-              <option value="64GB">64GB</option>
-              <option value="128GB">128GB</option>
-              <option value="256GB">256GB</option>
-              <option value="512GB">512GB</option>
-              <option value="1TB">1TB</option>
-              <option value="2TB">2TB</option>
-            </select>
-          </div>
-          <div>
-            <label>Carrier</label>
-            <select id="manual_carrier">
-              <option value="Unknown">Select Carrier</option>
-              <option value="Unlocked">Unlocked</option>
-              <option value="AT&T">AT&T</option>
-              <option value="Verizon">Verizon</option>
-              <option value="T-Mobile">T-Mobile</option>
-              <option value="Sprint">Sprint</option>
-              <option value="XFINITY">XFINITY</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-          <div>
-            <label>Condition</label>
-            <select id="manual_condition">
-              <option value="NIB">NIB</option>
-              <option value="A">A</option>
-              <option value="B" selected>B</option>
-              <option value="C">C</option>
-              <option value="D">D</option>
-            </select>
-          </div>
-          <div>
-            <label>Price</label>
-            <input type="number" id="manual_price" placeholder="$" step="0.01">
-          </div>
-          <div>
-            <label>Qty</label>
-            <input type="number" id="manual_quantity" value="1" min="1">
-          </div>
-          <div>
-            <label>Notes</label>
-            <button class="btn btn-secondary" id="manual_notes_btn" style="width: 100%;">
-              <i class="fas fa-sticky-note"></i> Notes
-            </button>
-          </div>
-        </div>
-        
-        <input type="hidden" id="manual_purchase_date">
-        <input type="hidden" id="manual_type" value="Phone">
-        
-        <div class="form-group">
-          <button class="btn" id="manual-add-item-btn">
-            <i class="fas fa-plus"></i> Add Item
-          </button>
-          <button class="btn btn-secondary" id="manual-clear-btn">
-            <i class="fas fa-times"></i> Clear Form
-          </button>
-        </div>
-      </div>
-      
-      <!-- Recently Added Items -->
-      <div class="card">
-        <div class="card-header">
-          <h2>Recently Added Items</h2>
-        </div>
-        
-        <div class="table-responsive">
-          <table>
-            <thead>
-              <tr>
-                <th>IMEI/Serial</th>
-                <th>Device</th>
-                <th>Condition</th>
-                <th>Location</th>
-                <th>Price Paid</th>
-                <th>Date Added</th>
-              </tr>
-            </thead>
-            <tbody id="recent-items-body">
-              <!-- Recently added items will be dynamically inserted here -->
-            </tbody>
-          </table>
-        </div>
-      </div>
+
       
       <div id="results-container" style="display: none;">
         <div class="card">
@@ -1032,38 +916,46 @@
           </div>
         </div>
         
-        <div class="card">
-          <div class="card-header">
-            <h2>Add Manual Item</h2>
+          <div class="card">
+            <div class="card-header">
+              <h2>Add Manual Item</h2>
+            </div>
+            
+            <div class="compact-manual-entry">
+              <div class="typeahead">
+                <input type="text" id="m_device" placeholder="Device Name">
+                <div class="typeahead-results" id="m_suggest" style="display: none;"></div>
+              </div>
+              <div class="typeahead">
+                <input type="text" id="m_color" placeholder="Color">
+                <div class="typeahead-results" id="m_color_suggest" style="display: none;"></div>
+              </div>
+              <select id="manual_storage">
+                <option value="">Select</option>
+                <option value="64GB">64GB</option>
+                <option value="128GB">128GB</option>
+                <option value="256GB">256GB</option>
+                <option value="512GB">512GB</option>
+                <option value="1TB">1TB</option>
+                <option value="2TB">2TB</option>
+              </select>
+              <select id="manual_carrier">
+                <option value="Unknown">Select Carrier</option>
+                <option value="Unlocked">Unlocked</option>
+                <option value="AT&T">AT&T</option>
+                <option value="Verizon">Verizon</option>
+                <option value="T-Mobile">T-Mobile</option>
+                <option value="Sprint">Sprint</option>
+                <option value="Other">Other</option>
+              </select>
+              <div style="display: flex; gap: 10px;">
+                <input type="number" id="manual_price" placeholder="$" style="flex: 1;">
+                <button class="btn" id="manual-add-item-btn" style="margin-bottom: 15px;">
+                  <i class="fas fa-plus"></i>
+                </button>
+              </div>
+            </div>
           </div>
-          
-          <div class="compact-manual-entry">
-            <div class="typeahead">
-              <input type="text" id="m_device" placeholder="Device Name">
-              <div class="typeahead-results" id="device-results"></div>
-            </div>
-            <div class="typeahead">
-              <input type="text" id="m_color" placeholder="Color">
-              <div class="typeahead-results" id="color-results"></div>
-            </div>
-            <input type="text" id="m_storage" placeholder="Storage">
-            <select id="m_carrier">
-              <option value="Unknown">Carrier</option>
-              <option value="Unlocked">Unlocked</option>
-              <option value="AT&T">AT&T</option>
-              <option value="Verizon">Verizon</option>
-              <option value="T-Mobile">T-Mobile</option>
-              <option value="Sprint">Sprint</option>
-              <option value="Other">Other</option>
-            </select>
-            <div style="display: flex; gap: 10px;">
-              <input type="number" id="m_price" placeholder="Price" style="flex: 1;">
-              <button class="btn" id="addManual" style="margin-bottom: 15px;">
-                <i class="fas fa-plus"></i>
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
     
