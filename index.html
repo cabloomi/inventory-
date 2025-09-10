@@ -141,9 +141,35 @@
     document.getElementById('lookup-btn').addEventListener('click', async () => {
       const imeiInput = document.getElementById('imei-input').value.trim();
       if (!imeiInput) return alert('Please enter at least one IMEI');
-      // Simulate lookup: For demo, just display entered IMEIs
+      const imeis = imeiInput.split('\n').map(i => i.trim()).filter(i => i);
       const resultsDiv = document.getElementById('lookup-results');
-      resultsDiv.innerHTML = `<pre>${imeiInput.split('\n').map(i => i.trim()).filter(i => i).join('\n')}</pre>`;
+      resultsDiv.innerHTML = 'Loading...';
+      try {
+        const res = await fetch('/api/intake', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imeis })
+        });
+        if (!res.ok) throw new Error('Lookup failed');
+        const data = await res.json();
+        if (!data.items || !data.items.length) {
+          resultsDiv.innerHTML = 'No results found';
+          return;
+        }
+        resultsDiv.innerHTML = '<table><thead><tr><th>IMEI</th><th>Device</th><th>Color</th><th>Storage</th><th>Carrier</th><th>Suggested Price</th></tr></thead><tbody>' +
+          data.items.map(item => `
+          <tr>
+            <td>${escapeHtml(item.imei)}</td>
+            <td>${escapeHtml(item.device_display || '')}</td>
+            <td>${escapeHtml(item.color || '')}</td>
+            <td>${escapeHtml(item.storage || '')}</td>
+            <td>${escapeHtml(item.carrier || '')}</td>
+            <td>$${Number(item.suggested_price_dollars || 0).toFixed(2)}</td>
+          </tr>
+        `).join('') + '</tbody></table>';
+      } catch (e) {
+        resultsDiv.innerHTML = 'Error: ' + e.message;
+      }
     });
 
     // Manual Add Function
