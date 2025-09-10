@@ -654,7 +654,62 @@
     </div>
     
     <!-- Inventory Tab -->
-    <div id="inventory-tab" class="tab-content">
+      <div id="inventory-tab" class="tab-content">
+        <script>
+          async function fetchAndRenderInventoryFromSheet() {
+            const tbody = document.getElementById('inventory-body');
+            tbody.innerHTML = '';
+          
+            try {
+              const res = await fetch('/api/fetchFromSheet');
+              if (!res.ok) throw new Error('Failed to fetch inventory');
+              const rows = await res.json();
+          
+              if (!rows.length) {
+                tbody.innerHTML = `<tr><td colspan=\"8\" style=\"text-align:center; padding: 30px;\"><i class=\"fas fa-box-open\" style=\"font-size:24px; margin-bottom:10px; display:block; opacity:0.5;\"></i>No inventory items found.</td></tr>`;
+                return;
+              }
+          
+              rows.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                  <td>${escapeHtml(item['Device'] || '')}</td>
+                  <td>${escapeHtml(item['Color'] || '')}</td>
+                  <td>${escapeHtml(item['IMEI / Serial Number'] || '')}</td>
+                  <td>${escapeHtml(item['Storage'] || '')}</td>
+                  <td>${escapeHtml(item['Carrier'] || '')}</td>
+                  <td>${escapeHtml(item['Condition'] || '')}</td>
+                  <td class=\"right\">${formatPriceDollars(item['Price Paid'] || 0)}</td>
+                  <td>${escapeHtml(item['Timestamp'] || '')}</td>
+                `;
+                tbody.appendChild(tr);
+              });
+            } catch (error) {
+              tbody.innerHTML = `<tr><td colspan=\"8\" style=\"text-align:center; padding: 30px;\">Error loading inventory data.</td></tr>`;
+            }
+          }
+          
+          function formatPriceDollars(value) {
+            let num = Number(value);
+            if (isNaN(num) || num === 0) return '';
+            return "$" + num.toFixed(2);
+          }
+
+          function escapeHtml(text) {
+            if (!text) return '';
+            return text.toString()
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/"/g, "&quot;")
+              .replace(/'/g, "&#039;");
+          }
+
+          document.addEventListener('DOMContentLoaded', () => {
+            fetchAndRenderInventoryFromSheet();
+          });
+        <\/script>
+      </div>
       <div class="card">
         <div class="card-header">
           <h2>Inventory Management</h2>
@@ -698,16 +753,14 @@
             <table id="inventory-table">
               <thead>
                 <tr>
-                  <th style="width: 30px;">
-                    <input type="checkbox" id="select-all-inventory">
-                  </th>
-                  <th>IMEI</th>
                   <th>Device</th>
+                  <th>Color</th>
+                  <th>IMEI / Serial Number</th>
+                  <th>Storage</th>
+                  <th>Carrier</th>
                   <th>Condition</th>
                   <th>Price Paid</th>
-                  <th>Status</th>
-                  <th>Added</th>
-                  <th>Actions</th>
+                  <th>Timestamp</th>
                 </tr>
               </thead>
               <tbody id="inventory-body">
@@ -1522,7 +1575,7 @@
     }
 
     // Add manual item
-    function addManualItem(e) {
+    async function addManualItem(e) {
       e.preventDefault();
       const device = document.getElementById('m_device').value.trim();
       const color = document.getElementById('m_color').value.trim();
@@ -1535,21 +1588,46 @@
         showAlert('error', 'Please enter a device name.');
         return;
       }
-      
+
+      // Prepare batch of items to add
+      let addedItems = [];
+
       for (let i = 0; i < qty; i++) {
-        state.manual.push({
+        addedItems.push({
           device: device,
           color: color,
           storage: storage,
           carrier: carrier,
-          identifier: '',
-          unitPrice: isFinite(unitPrice) ? unitPrice : 0,
-          notes: ''
+          price: isFinite(unitPrice) ? unitPrice : 0
         });
       }
-      
-      renderManualItems();
-      
+
+      try {
+        // Send items to backend Google Sheet API
+        for (const item of addedItems) {
+          await fetch('/api/addToSheet', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(item),
+          });
+
+          // Add to local state
+          state.manual.push({
+            device: item.device,
+            color: item.color,
+            storage: item.storage,
+            carrier: item.carrier,
+            identifier: '',
+            unitPrice: item.price,
+            notes: ''
+          });
+        }
+        renderManualItems();
+        showAlert('success', `${qty} item(s) added successfully.`);
+      } catch (error) {
+        showAlert('error', 'Failed to add item to Google Sheet.');
+      }
+
       // Clear inputs
       document.getElementById('m_device').value = '';
       document.getElementById('m_color').value = '';
@@ -1737,7 +1815,7 @@
           icloud_lock: r.icloud_lock_on ? 'ON' : 'OFF',
           condition_hint: r.condition_hint || '',
           estimated_purchase_date: r.estimated_purchase_date || '',
-          quantity: 1,
+          // quantity removed as per request
           unit_price_cents: cents,
           line_total_cents: cents,
           suggested_price_cents: (typeof r.suggested_price_cents !== 'undefined' ? r.suggested_price_cents : ''),
