@@ -115,14 +115,14 @@
     <table>
       <thead>
         <tr>
+          <th>IMEI</th>
           <th>Device</th>
           <th>Color</th>
-          <th>IMEI / Serial Number</th>
           <th>Storage</th>
           <th>Carrier</th>
           <th>Condition</th>
-          <th>Price Paid</th>
-          <th>Timestamp</th>
+          <th>Warnings</th>
+          <th>Suggested Price</th>
         </tr>
       </thead>
       <tbody id="inventory-body">
@@ -298,6 +298,7 @@
         const rows = document.querySelectorAll('#lookup-results tbody tr');
         let itemsToAdd = [];
         let payoutTotal = 0;
+        let failedItems = [];
         rows.forEach(row => {
           const imei = row.dataset.imei || '';
           const device = row.children[1]?.textContent || '';
@@ -309,18 +310,22 @@
           payoutTotal += price;
         });
         document.getElementById('total-payout').textContent = payoutTotal.toFixed(2);
-        try {
-          for (let item of itemsToAdd) {
+        for (let item of itemsToAdd) {
+          try {
             const res = await fetch('/api/addToSheet', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(item)
             });
-            if (!res.ok) throw new Error('Failed to add one or more items');
+            if (!res.ok) throw new Error(`Failed to add item ${item.device} with IMEI ${item.imei}`);
+          } catch (e) {
+            failedItems.push(e.message);
           }
+        }
+        if (failedItems.length > 0) {
+          alert('Error adding items:\n' + failedItems.join('\n'));
+        } else {
           alert('All items added to inventory successfully');
-        } catch (e) {
-          alert('Error adding items: ' + e.message);
         }
       }
     });
