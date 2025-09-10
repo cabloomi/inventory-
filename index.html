@@ -189,18 +189,37 @@
           resultsDiv.innerHTML = 'No results found';
           return;
         }
-        resultsDiv.innerHTML = '<table><thead><tr><th>IMEI</th><th>Device</th><th>Color</th><th>Storage</th><th>Carrier</th><th>Suggested Price</th><th>Actions</th></tr></thead><tbody>' +
-          data.items.map(item => `
-          <tr data-imei="${escapeHtml(item.imei)}">
-            <td>${escapeHtml(item.imei)}</td>
-            <td>${escapeHtml(item.device_display || '')}</td>
-            <td>${escapeHtml(item.color || '')}</td>
-            <td>${escapeHtml(item.storage || '')}</td>
-            <td>${escapeHtml(item.carrier || '')}</td>
-            <td><input class="suggested-price-input" type="number" min="0" value="$${Number(item.suggested_price_dollars || 0).toFixed(2)}" style="width:80px;" /></td>
-            <td><button class="btn add-to-inventory">Add</button></td>
-          </tr>
-        `).join('') + '</tbody></table><div><button id="add-all-to-inventory" class="btn" style="margin-top:12px;">Add All to Inventory</button> <strong style="margin-left:20px;">Total Payout: $<span id="total-payout">0.00</span></strong></div>';
+
+        let tableHtml = '<table><thead><tr><th>IMEI</th><th>Device</th><th>Color</th><th>Storage</th><th>Carrier</th><th>Condition</th><th>Warnings</th><th>Suggested Price</th><th>Actions</th></tr></thead><tbody>';
+
+        data.items.forEach(item => {
+          let warnings = [];
+          const ageDays = item.estimated_purchase_age_days || 0;
+          const icloudOn = item.icloud_lock_on || false;
+          if (ageDays > 14 && ageDays < 45) warnings.push('<span style="color:yellow;">Check for use</span>');
+          else if (ageDays >= 45) warnings.push('<span style="color:orange;">Assume used</span>');
+          if (icloudOn) warnings.push('<span style="color:red;">FMI ON</span>');
+
+          tableHtml += `
+            <tr data-imei="${escapeHtml(item.imei)}">
+              <td>${escapeHtml(item.imei)}</td>
+              <td>${escapeHtml(item.device_display || '')}</td>
+              <td>${escapeHtml(item.color || '')}</td>
+              <td>${escapeHtml(item.storage || '')}</td>
+              <td>${escapeHtml(item.carrier || '')}</td>
+              <td>${escapeHtml(item.condition_hint === 'assume_used' ? 'Used' : 'New')}</td>
+              <td>${warnings.join('<br>')}</td>
+              <td><input class="suggested-price-input" type="number" min="0" value="$${Number(item.suggested_price_dollars || 0).toFixed(2)}" style="width:80px;" /></td>
+              <td><button class="btn add-to-inventory">Add</button></td>
+            </tr>
+          `;
+        });
+
+        tableHtml += '</tbody></table>';
+        tableHtml += '<div><button id="add-all-to-inventory" class="btn" style="margin-top:12px;">Add All to Inventory</button> ';
+        tableHtml += '<strong style="margin-left:20px;">Total Payout: $<span id="total-payout">0.00</span></strong></div>';
+
+        resultsDiv.innerHTML = tableHtml;
       } catch (e) {
         resultsDiv.innerHTML = 'Error: ' + e.message;
       }
