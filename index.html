@@ -83,6 +83,13 @@
 </style>
 </head>
 <body>
+  <div class="header-right" style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+    <div class="balance-display">
+      <i class="fas fa-wallet"></i>
+      <span>API Balance: <span id="balance-value">Loading...</span></span>
+    </div>
+    <button class="btn secondary" id="refresh-balance">Refresh Balance</button>
+  </div>
   <div class="tabs">
     <a href="#lookup" class="tab active" data-tab="lookup">Lookup / Manual Add</a>
     <a href="#inventory" class="tab" data-tab="inventory">Inventory</a>
@@ -93,12 +100,14 @@
     <button id="lookup-btn">Lookup IMEIs</button>
     <hr />
     <h3>Manual Add</h3>
-    <input type="text" id="m_device" placeholder="Device Name" />
-    <input type="text" id="m_color" placeholder="Color" />
-    <input type="text" id="m_storage" placeholder="Storage" />
-    <input type="text" id="m_carrier" placeholder="Carrier" />
-    <input type="number" id="m_price" placeholder="Price ($)" min="0" />
-    <button id="add-manual-btn">Add Item</button>
+    <div style="display:flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+      <div style="flex: 1 1 160px;"><input type="text" id="m_device" placeholder="Device Name" style="width:100%; height:28px; font-size:0.9em;" /></div>
+      <div style="flex: 0 0 100px;"><input type="text" id="m_color" placeholder="Color" style="width:100%; height:28px; font-size:0.9em;" /></div>
+      <div style="flex: 0 0 90px;"><input type="text" id="m_storage" placeholder="Storage" style="width:100%; height:28px; font-size:0.9em;" /></div>
+      <div style="flex: 0 0 110px;"><input type="text" id="m_carrier" placeholder="Carrier" style="width:100%; height:28px; font-size:0.9em;" /></div>
+      <div style="flex: 0 0 90px;"><input type="number" id="m_price" placeholder="Price ($)" min="0" style="width:100%; height:28px; font-size:0.9em;" /></div>
+      <div><button id="add-manual-btn">Add Item</button></div>
+    </div>
     <div id="lookup-results"></div>
   </div>
   <div id="inventory-tab" class="tab-content">
@@ -123,6 +132,30 @@
   </div>
 
   <script>
+    // Check Balance
+    async function checkBalance() {
+      const balanceValue = document.getElementById('balance-value');
+      balanceValue.textContent = 'Loading...';
+      try {
+        const res = await fetch('/api/balance');
+        if (!res.ok) throw new Error('Failed to fetch balance');
+        const data = await res.json();
+        if (data.balance) {
+          balanceValue.textContent = '$' + data.balance;
+          balanceValue.classList.remove('error');
+        } else {
+          balanceValue.textContent = 'Error';
+          balanceValue.classList.add('error');
+        }
+      } catch (e) {
+        balanceValue.textContent = 'Error';
+        balanceValue.classList.add('error');
+      }
+    }
+
+    document.getElementById('refresh-balance').addEventListener('click', checkBalance);
+    document.addEventListener('DOMContentLoaded', checkBalance);
+
     // Tab Switching Logic
     const tabs = document.querySelectorAll('.tab');
     const tabContents = document.querySelectorAll('.tab-content');
@@ -156,7 +189,7 @@
           resultsDiv.innerHTML = 'No results found';
           return;
         }
-        resultsDiv.innerHTML = '<table><thead><tr><th>IMEI</th><th>Device</th><th>Color</th><th>Storage</th><th>Carrier</th><th>Suggested Price</th></tr></thead><tbody>' +
+        resultsDiv.innerHTML = '<table><thead><tr><th>IMEI</th><th>Device</th><th>Color</th><th>Storage</th><th>Carrier</th><th>Suggested Price</th><th>Actions</th></tr></thead><tbody>' +
           data.items.map(item => `
           <tr data-imei="${escapeHtml(item.imei)}">
             <td>${escapeHtml(item.imei)}</td>
@@ -164,10 +197,10 @@
             <td>${escapeHtml(item.color || '')}</td>
             <td>${escapeHtml(item.storage || '')}</td>
             <td>${escapeHtml(item.carrier || '')}</td>
-            <td>$${Number(item.suggested_price_dollars || 0).toFixed(2)}</td>
-            <td><button class="btn add-to-inventory">Add to Inventory</button></td>
+            <td><input class="suggested-price-input" type="number" min="0" value="$${Number(item.suggested_price_dollars || 0).toFixed(2)}" style="width:80px;" /></td>
+            <td><button class="btn add-to-inventory">Add</button></td>
           </tr>
-        `).join('') + '</tbody></table><div><strong>Total Payout: $<span id="total-payout">0.00</span></strong></div>';
+        `).join('') + '</tbody></table><div><button id="add-all-to-inventory" class="btn" style="margin-top:12px;">Add All to Inventory</button> <strong style="margin-left:20px;">Total Payout: $<span id="total-payout">0.00</span></strong></div>';
       } catch (e) {
         resultsDiv.innerHTML = 'Error: ' + e.message;
       }
@@ -215,8 +248,7 @@
       const color = row.children[2]?.textContent || '';
       const storage = row.children[3]?.textContent || '';
       const carrier = row.children[4]?.textContent || '';
-      const priceText = row.children[5]?.textContent || '$0';
-      const price = parseFloat(priceText.replace(/[^\d\.]/g, '')) || 0;
+      const price = parseFloat(row.querySelector('.suggested-price-input')?.value) || 0;
 
       const item = { device, color, storage, carrier, price, imei };
 
@@ -240,6 +272,39 @@
       totalPayout += amount;
       document.getElementById('total-payout').textContent = totalPayout.toFixed(2);
     }
+
+    // Add All to Inventory Button
+    document.addEventListener('click', async e => {
+      if (e.target && e.target.id === 'add-all-to-inventory') {
+        const rows = document.querySelectorAll('#lookup-results tbody tr');
+        let itemsToAdd = [];
+        let payoutTotal = 0;
+        rows.forEach(row => {
+          const imei = row.dataset.imei || '';
+          const device = row.children[1]?.textContent || '';
+          const color = row.children[2]?.textContent || '';
+          const storage = row.children[3]?.textContent || '';
+          const carrier = row.children[4]?.textContent || '';
+          const price = parseFloat(row.querySelector('.suggested-price-input')?.value) || 0;
+          itemsToAdd.push({ device, color, storage, carrier, price, imei });
+          payoutTotal += price;
+        });
+        document.getElementById('total-payout').textContent = payoutTotal.toFixed(2);
+        try {
+          for (let item of itemsToAdd) {
+            const res = await fetch('/api/addToSheet', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(item)
+            });
+            if (!res.ok) throw new Error('Failed to add one or more items');
+          }
+          alert('All items added to inventory successfully');
+        } catch (e) {
+          alert('Error adding items: ' + e.message);
+        }
+      }
+    });
 
     function escapeHtml(text) {
       if (!text) return '';
