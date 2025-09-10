@@ -93,6 +93,37 @@
   <div class="tabs">
     <a href="#lookup" class="tab active" data-tab="lookup">Lookup / Manual Add</a>
     <a href="#inventory" class="tab" data-tab="inventory">Inventory</a>
+    <a href="#cash" class="tab" data-tab="cash">Cash Drawer</a>
+  </div>
+
+  <div id="cash-tab" class="tab-content">
+    <h2>Cash Drawer</h2>
+    <div>
+      <h3>Balance: $<span id="cash-balance">0.00</span></h3>
+      <button id="refresh-cash" class="btn">Refresh Balance</button>
+    </div>
+    <div>
+      <h3>Transactions</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Amount ($)</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="cash-transactions">
+          <tr><td colspan="4" style="text-align:center;">No transactions found.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h3>Add Transaction</h3>
+      <input type="text" id="transaction-desc" placeholder="Description" />
+      <input type="number" id="transaction-amount" placeholder="Amount ($)" />
+      <button id="add-transaction-btn" class="btn">Add Transaction</button>
+    </div>
   </div>
   <div id="lookup-tab" class="tab-content active">
     <h2>Lookup and Add Manual Item</h2>
@@ -167,6 +198,11 @@
         tab.classList.add('active');
         const tabId = tab.getAttribute('data-tab');
         document.getElementById(tabId + '-tab').classList.add('active');
+
+        // Load inventory on tab click
+        if (tabId === 'inventory') loadInventory();
+        // Load cash drawer on tab click
+        else if (tabId === 'cash') loadCashDrawer();
       });
     });
 
@@ -345,10 +381,78 @@
       loadInventory();
     }
 
+    // Initially load cash drawer if cash tab active
+    if (document.getElementById('cash-tab').classList.contains('active')) {
+      loadCashDrawer();
+    }
+
     // Load inventory on tab click
     document.querySelectorAll('[data-tab="inventory"]').forEach(tab => {
       tab.addEventListener('click', loadInventory);
     });
+
+    // Load cash drawer on tab click
+    document.querySelectorAll('[data-tab="cash"]').forEach(tab => {
+      tab.addEventListener('click', loadCashDrawer);
+    });
+
+    async function loadCashDrawer() {
+      const balanceEl = document.getElementById('cash-balance');
+      const transactionsBody = document.getElementById('cash-transactions');
+      balanceEl.textContent = 'Loading...';
+      transactionsBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Loading transactions...</td></tr>';
+      try {
+        const res = await fetch('/api/cash');
+        if (!res.ok) throw new Error('Failed to load cash drawer');
+        const data = await res.json();
+        balanceEl.textContent = '$' + (data.balance || 0).toFixed(2);
+
+        if (!data.transactions || data.transactions.length === 0) {
+          transactionsBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No transactions found.</td></tr>';
+          return;
+        }
+
+        transactionsBody.innerHTML = '';
+        data.transactions.forEach(tx => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${escapeHtml(tx.date)}</td><td>${escapeHtml(tx.description)}</td><td>$${Number(tx.amount).toFixed(2)}</td><td><button class=\"btn remove-tx\">Remove</button></td>`;
+          transactionsBody.appendChild(tr);
+        });
+      } catch (e) {
+        balanceEl.textContent = 'Error';
+        transactionsBody.innerHTML = `<tr><td colspan=\"4\" style=\"text-align:center;\">Error loading transactions: ${escapeHtml(e.message)}</td></tr>`;
+      }
+    }
+
+    document.getElementById('refresh-cash').addEventListener('click', loadCashDrawer);
+
+    document.getElementById('add-transaction-btn').addEventListener('click', async () => {
+      const desc = document.getElementById('transaction-desc').value.trim();
+      const amount = parseFloat(document.getElementById('transaction-amount').value.trim());
+      if (!desc || isNaN(amount)) return alert('Please enter valid description and amount');
+      try {
+        const res = await fetch('/api/cash', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ description: desc, amount: amount })
+        });
+        if (!res.ok) throw new Error('Failed to add transaction');
+        alert('Transaction added successfully');
+        document.getElementById('transaction-desc').value = '';
+        document.getElementById('transaction-amount').value = '';
+        loadCashDrawer();
+      } catch (e) {
+        alert('Error adding transaction: ' + e.message);
+      }
+    });
+
+    document.getElementById('cash-transactions').addEventListener('click', async e => {
+      if (!e.target.classList.contains('remove-tx')) return;
+      if (!confirm('Are you sure you want to remove this transaction?')) return;
+      // Removal functionality can be implemented later with transaction ID
+      alert('Remove transaction feature not implemented yet.');
+    });
+
   </script>
 </body>
 </html>
