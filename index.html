@@ -209,7 +209,7 @@
               <td>${escapeHtml(item.carrier || '')}</td>
               <td>${escapeHtml(item.condition_hint === 'assume_used' ? 'Used' : 'New')}</td>
               <td>${warnings.join('<br>')}</td>
-              <td><input class="suggested-price-input" type="number" min="0" value="$${Number(item.suggested_price_dollars || 0).toFixed(2)}" style="width:80px;" /></td>
+              <td>$<input class="suggested-price-input" type="number" min="0" value="${Number(item.suggested_price_dollars || 0).toFixed(2)}" style="width:80px;" /></td>
               <td><button class="btn add-to-inventory">Add</button></td>
             </tr>
           `;
