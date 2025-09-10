@@ -1116,21 +1116,24 @@
       tabs.forEach(tab => {
         tab.addEventListener('click', function(e) {
           e.preventDefault();
-          
-          // Remove active class from all tabs and contents
-          tabs.forEach(t => t.classList.remove('active'));
-          tabContents.forEach(c => c.classList.remove('active'));
-          
-          // Add active class to clicked tab and corresponding content
-          this.classList.add('active');
-          const tabId = this.getAttribute('data-tab');
-          document.getElementById(`${tabId}-tab`).classList.add('active');
-          
-          // Load tab-specific data
-          if (tabId === 'inventory') {
-            loadInventory();
-          } else if (tabId === 'cash-drawer') {
-            loadCashDrawer();
+          try {
+            // Remove active class from all tabs and contents
+            tabs.forEach(t => t.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            
+            // Add active class to clicked tab and corresponding content
+            this.classList.add('active');
+            const tabId = this.getAttribute('data-tab');
+            document.getElementById(`${tabId}-tab`).classList.add('active');
+            
+            // Load tab-specific data
+            if (tabId === 'inventory') {
+              loadInventory();
+            } else if (tabId === 'cash-drawer') {
+              loadCashDrawer();
+            }
+          } catch (err) {
+            console.error('Error switching tabs:', err);
           }
         });
       });
@@ -1533,7 +1536,7 @@
             </select>
           </td>
           <td>
-            <input type="number" class="price-paid" data-idx="${idx}" placeholder="${escapeHtml(String(r.suggested_price_cents || ''))}" value="${escapeHtml(String(r.suggested_price_cents || ''))}">
+          <input type="number" class="price-paid" data-idx="${idx}" placeholder="${escapeHtml(formatMoney(Number(r.suggested_price_cents) || 0))}" value="${escapeHtml((Number(r.suggested_price_cents) || 0) / 100)}">
           </td>
           <td>
             <input type="text" class="notes" data-idx="${idx}" placeholder="Optional notes">
@@ -1551,7 +1554,7 @@
           <input type="hidden" class="model-name" data-idx="${idx}" value="${escapeHtml(String(r.model_name || ''))}">
           <input type="hidden" class="model-code" data-idx="${idx}" value="${escapeHtml(String(r.model_code || ''))}">
           <input type="hidden" class="device-display" data-idx="${idx}" value="${escapeHtml(String(r.device_display || ''))}">
-          <input type="hidden" class="suggested-price" data-idx="${idx}" value="${escapeHtml(String(r.suggested_price_cents || ''))}">
+          <input type="hidden" class="suggested-price" data-idx="${idx}" value="${escapeHtml(String((Number(r.suggested_price_cents) || 0)))}">
         `;
         tbody.appendChild(hiddenFields);
       });
