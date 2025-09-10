@@ -134,7 +134,44 @@
         tab.classList.add('active');
         const tabId = tab.getAttribute('data-tab');
         document.getElementById(tabId + '-tab').classList.add('active');
-      });
+    });
+
+    // Add to Inventory buttons for lookup results
+    document.getElementById('lookup-results').addEventListener('click', async event => {
+      if (!event.target.classList.contains('add-to-inventory')) return;
+      const row = event.target.closest('tr');
+      if (!row) return;
+
+      const imei = row.dataset.imei || '';
+      const device = row.children[1]?.textContent || '';
+      const color = row.children[2]?.textContent || '';
+      const storage = row.children[3]?.textContent || '';
+      const carrier = row.children[4]?.textContent || '';
+      const priceText = row.children[5]?.textContent || '$0';
+      const price = parseFloat(priceText.replace(/[^\d\.]/g, '')) || 0;
+
+      const item = { device, color, storage, carrier, price, imei };
+
+      try {
+        const res = await fetch('/api/addToSheet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(item)
+        });
+        if (!res.ok) throw new Error('Failed to add item');
+        alert('Item added to inventory successfully');
+        updateTotalPayout(price);
+      } catch (e) {
+        alert('Error adding item: ' + e.message);
+      }
+    });
+
+    // Update total payout
+    let totalPayout = 0;
+    function updateTotalPayout(amount) {
+      totalPayout += amount;
+      document.getElementById('total-payout').textContent = totalPayout.toFixed(2);
+    }
     });
 
     // Lookup Function
@@ -156,17 +193,18 @@
           resultsDiv.innerHTML = 'No results found';
           return;
         }
-        resultsDiv.innerHTML = '<table><thead><tr><th>IMEI</th><th>Device</th><th>Color</th><th>Storage</th><th>Carrier</th><th>Suggested Price</th></tr></thead><tbody>' +
+        resultsDiv.innerHTML = '<table><thead><tr><th>IMEI</th><th>Device</th><th>Color</th><th>Storage</th><th>Carrier</th><th>Suggested Price</th><th>Actions</th></tr></thead><tbody>' +
           data.items.map(item => `
-          <tr>
+          <tr data-imei="${escapeHtml(item.imei)}">
             <td>${escapeHtml(item.imei)}</td>
             <td>${escapeHtml(item.device_display || '')}</td>
             <td>${escapeHtml(item.color || '')}</td>
             <td>${escapeHtml(item.storage || '')}</td>
             <td>${escapeHtml(item.carrier || '')}</td>
             <td>$${Number(item.suggested_price_dollars || 0).toFixed(2)}</td>
+            <td><button class="btn add-to-inventory">Add to Inventory</button></td>
           </tr>
-        `).join('') + '</tbody></table>';
+        `).join('') + '</tbody></table><div><strong>Total Payout: $<span id="total-payout">0.00</span></strong></div>';
       } catch (e) {
         resultsDiv.innerHTML = 'Error: ' + e.message;
       }
@@ -202,6 +240,44 @@
         alert('Error adding item: ' + e.message);
       }
     });
+
+    // Add to Inventory buttons for lookup results
+    document.getElementById('lookup-results').addEventListener('click', async event => {
+      if (!event.target.classList.contains('add-to-inventory')) return;
+      const row = event.target.closest('tr');
+      if (!row) return;
+
+      const imei = row.dataset.imei || '';
+      const device = row.children[1]?.textContent || '';
+      const color = row.children[2]?.textContent || '';
+      const storage = row.children[3]?.textContent || '';
+      const carrier = row.children[4]?.textContent || '';
+      const priceText = row.children[5]?.textContent || '$0';
+      const price = parseFloat(priceText.replace(/[^\d\.]/g, '')) || 0;
+
+      const item = { device, color, storage, carrier, price, imei };
+
+      try {
+        const res = await fetch('/api/addToSheet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(item)
+        });
+        if (!res.ok) throw new Error('Failed to add item');
+        alert('Item added to inventory successfully');
+        updateTotalPayout(price);
+      } catch (e) {
+        alert('Error adding item: ' + e.message);
+      }
+    });
+
+    // Update total payout
+    let totalPayout = 0;
+    function updateTotalPayout(amount) {
+      totalPayout += amount;
+      document.getElementById('total-payout').textContent = totalPayout.toFixed(2);
+    }
+======= UPDATED
 
     // Load Inventory from Google Sheet
     async function loadInventory() {
