@@ -1117,6 +1117,7 @@
         tab.addEventListener('click', function(e) {
           e.preventDefault();
           try {
+            console.log('Tab clicked:', this);
             // Remove active class from all tabs and contents
             tabs.forEach(t => t.classList.remove('active'));
             tabContents.forEach(c => c.classList.remove('active'));
@@ -1124,7 +1125,12 @@
             // Add active class to clicked tab and corresponding content
             this.classList.add('active');
             const tabId = this.getAttribute('data-tab');
-            document.getElementById(`${tabId}-tab`).classList.add('active');
+            const contentTab = document.getElementById(`${tabId}-tab`);
+            if (!contentTab) {
+              console.error('No content for tab:', tabId);
+              return;
+            }
+            contentTab.classList.add('active');
             
             // Load tab-specific data
             if (tabId === 'inventory') {
@@ -1153,9 +1159,14 @@
 
     // Check API balance
     function checkBalance() {
+      console.log('Checking balance...');
       fetch('/api/balance')
-        .then(response => response.json())
+        .then(response => {
+          console.log('Balance response received');
+          return response.json();
+        })
         .then(data => {
+          console.log('Balance data:', data);
           const balanceValue = document.getElementById('balance-value');
           if (data.balance) {
             balanceValue.textContent = '$' + data.balance;
